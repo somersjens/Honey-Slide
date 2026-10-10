@@ -10,11 +10,108 @@
 		F951CADC307A40F800FF04C4 /* Honey Slide.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Honey Slide.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
 		F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951CD51307A423F00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951CD95307A423F00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951D2C4307A45DC00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951D30C307A45DC00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		AA1000013074D18500BC6413 /* Exceptions for "Honey Slide" folder in "Honey Slide" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				README.md,
+				"space-lion/AppAudio.swift",
+				"space-lion/AppSettings.swift",
+				"space-lion/Assets.xcassets",
+				"space-lion/background_music.mp3",
+				"space-lion/Core/CharacterUnlocks.swift",
+				"space-lion/Core/DecimalAnswer.swift",
+				"space-lion/Core/GameConfig.swift",
+				"space-lion/Core/MathQuestion.swift",
+				"space-lion/Core/MathTopic.swift",
+				"space-lion/Core/MemoryGame.swift",
+				"space-lion/Core/PausedSessionStore.swift",
+				"space-lion/Core/PracticeMode.swift",
+				"space-lion/Core/ProgressStore.swift",
+				"space-lion/Core/QuestionGenerator.swift",
+				"space-lion/Core/RoundFactory.swift",
+				"space-lion/Core/SeededGenerator.swift",
+				"space-lion/ElephantChallengeApp.swift",
+				"space-lion/EmphasizedText.swift",
+				"space-lion/FlyingPenguinPlayfield.swift",
+				"space-lion/GameView.swift",
+				"space-lion/GameViewModel.swift",
+				"space-lion/HomeComponents.swift",
+				"space-lion/HomeView.swift",
+				"space-lion/LevelIntroCard.swift",
+				"space-lion/Localizable.xcstrings",
+				"space-lion/Localization.swift",
+				"space-lion/MenuPolarBackground.swift",
+				"space-lion/Notifications.swift",
+				"space-lion/OnboardingView.swift",
+				"space-lion/ParentApprovalGate.swift",
+				"space-lion/PlaytimeTracker.swift",
+				"space-lion/PolarScenery.swift",
+				"space-lion/PremiumStore.swift",
+				"space-lion/PremiumView.swift",
+				"space-lion/Products.storekit",
+				"space-lion/ProgressSync.swift",
+				"space-lion/Promo/PromoStillCompositionView.swift",
+				"space-lion/Promo/TrailerCompositionView.swift",
+				"space-lion/PromotedPurchaseCoordinator.swift",
+				"space-lion/README.md",
+				"space-lion/ResultView.swift",
+				"space-lion/ReviewRequestCoordinator.swift",
+				"space-lion/SceneryAir.swift",
+				"space-lion/SceneryFloaters.swift",
+				"space-lion/SceneryHorizon.swift",
+				"space-lion/SceneryTheme.swift",
+				"space-lion/score_increase_main.caf",
+				"space-lion/ScreenSafeArea.swift",
+				"space-lion/SettingsView.swift",
+				"space-lion/sfx_button_press.caf",
+				"space-lion/sfx_cannon_shoot.m4a",
+				"space-lion/sfx_card_count.caf",
+				"space-lion/sfx_card_flight.caf",
+				"space-lion/sfx_card_reveal.caf",
+				"space-lion/sfx_character_unlock.caf",
+				"space-lion/sfx_double_card.caf",
+				"space-lion/sfx_double_score.caf",
+				"space-lion/sfx_end_screen_celebration.m4a",
+				"space-lion/sfx_fire_crackle.m4a",
+				"space-lion/sfx_good.m4a",
+				"space-lion/sfx_high_score.caf",
+				"space-lion/sfx_level_complete.caf",
+				"space-lion/sfx_life_pickup.m4a",
+				"space-lion/sfx_select.caf",
+				"space-lion/sfx_session_start.caf",
+				"space-lion/sfx_switch_off.caf",
+				"space-lion/sfx_switch_on.caf",
+				"space-lion/sfx_turbo.m4a",
+				"space-lion/sfx_wrong.m4a",
+				"space-lion/splash.caf",
+				"space-lion/Theme.swift",
+				"space-lion/Tools/Hungry_Frog_vertaalsheet_07082026.csv",
+				"space-lion/Tools/Hungry_Frog_vertaalsheet_07082026.gecorrigeerd.csv",
+				"space-lion/Tools/README.md",
+				"space-lion/Tools/translations.py",
+				"space-lion/Translations.csv",
+				"space-lion/Tutorial.swift",
+				Tests/HoneySlideChecks.swift,
+				Tests/README.md,
+				Tools/README.md,
+			);
+			target = F951CADB307A40F800FF04C4 /* Honey Slide */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		F951CADE307A40F900FF04C4 /* Honey Slide */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				AA1000013074D18500BC6413 /* Exceptions for "Honey Slide" folder in "Honey Slide" target */,
+			);
 			path = "Honey Slide";
 			sourceTree = "<group>";
 		};
@@ -34,6 +131,7 @@
 			children = (
 				F951CADE307A40F900FF04C4 /* Honey Slide */,
 				F951CADD307A40F800FF04C4 /* Products */,
+				F951CCEF307A423F00FF04C4 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -53,6 +151,45 @@
 			sourceTree = "<group>";
 		};
 		F951CB99307A416800FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951CCEF307A423F00FF04C4 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */,
+				F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */,
+				F951CD51307A423F00FF04C4 /* Space Lion.xcodeproj */,
+				F951CD95307A423F00FF04C4 /* Space Lion.xcodeproj */,
+			);
+			name = "Recovered References";
+			sourceTree = "<group>";
+		};
+		F951CD9B307A423F00FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951CD9D307A423F00FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951D312307A45DC00FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951D314307A45DC00FF04C4 /* Products */ = {
 			isa = PBXGroup;
 			children = (
 			);
@@ -109,8 +246,24 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
+					ProductGroup = F951D314307A45DC00FF04C4 /* Products */;
+					ProjectRef = F951D2C4307A45DC00FF04C4 /* Space Lion.xcodeproj */;
+				},
+				{
 					ProductGroup = F951CB99307A416800FF04C4 /* Products */;
 					ProjectRef = F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */;
+				},
+				{
+					ProductGroup = F951CD9B307A423F00FF04C4 /* Products */;
+					ProjectRef = F951CD51307A423F00FF04C4 /* Space Lion.xcodeproj */;
+				},
+				{
+					ProductGroup = F951CD9D307A423F00FF04C4 /* Products */;
+					ProjectRef = F951CD95307A423F00FF04C4 /* Space Lion.xcodeproj */;
+				},
+				{
+					ProductGroup = F951D312307A45DC00FF04C4 /* Products */;
+					ProjectRef = F951D30C307A45DC00FF04C4 /* Space Lion.xcodeproj */;
 				},
 				{
 					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
@@ -272,17 +425,21 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = CAMERA_USAGE_DESCRIPTION;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
@@ -290,15 +447,17 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "Hakketjak.Honey-Slide";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx appletvos appletvsimulator xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,3,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TVOS_DEPLOYMENT_TARGET = 27.0;
 				XROS_DEPLOYMENT_TARGET = 27.0;
 			};
@@ -319,17 +478,21 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = CAMERA_USAGE_DESCRIPTION;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
+				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 27.0;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 27.0;
@@ -337,15 +500,17 @@
 				PRODUCT_BUNDLE_IDENTIFIER = "Hakketjak.Honey-Slide";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
-				SDKROOT = auto;
+				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx appletvos appletvsimulator xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,3,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				TVOS_DEPLOYMENT_TARGET = 27.0;
 				XROS_DEPLOYMENT_TARGET = 27.0;
 			};
