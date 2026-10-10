@@ -96,7 +96,8 @@ public final class MemoryGame {
     /// These are the exact rounds `advance()` will use;
     /// previewing them never creates a second question stream.
     public var visibleRounds: [GameRound] {
-        ([round].compactMap { $0 } + preparedRounds).prefix(GameConfig.preparedRoundRunway).map { $0 }
+        guard state != .gameOver else { return [] }
+        return ([round].compactMap { $0 } + preparedRounds).prefix(GameConfig.preparedRoundRunway).map { $0 }
     }
 
     public private(set) var roundNumber = 0
@@ -142,9 +143,6 @@ public final class MemoryGame {
     /// Set once the session is over; nil while playing.
     public private(set) var gameOverReason: GameOverReason?
 
-    /// A wrong answer costs a life but leaves the sum standing: the coral keeps
-    /// offering the same answers until the right one is caught. Only a correct
-    /// answer moves the session on to the next sum.
 
     // MARK: Derived
 
@@ -152,9 +150,9 @@ public final class MemoryGame {
         Double(lifeHalves) / Double(GameConfig.lifeGranularity)
     }
 
-    /// Generated rounds have a defensive upper bound, although a normal run
-    /// finishes as soon as the board's required questions are answered.
-    public var maximumRounds: Int { GameConfig.maximumRoundCeiling }
+    /// Each board is a fixed set of questions, irrespective of the net score.
+    public var maximumRounds: Int { board.maximum }
+    public var completedQuestions: Int { result.correctAnswers + result.wrongAnswers }
 
     /// Whether a tap on an answer card can be accepted right now.
     public var acceptsInput: Bool { state == .answering }
@@ -219,15 +217,14 @@ public final class MemoryGame {
     /// lives and round they stopped on. Rejected if the record is not playable.
     @discardableResult
     public func resume(from session: PausedSession) -> Bool {
-        guard state == .intro, session.isResumable else { return false }
-        roundNumber = session.roundNumber
-        cards = session.cards
-        lifeHalves = session.lifeHalves
+        guard state == .intro, session.isResumable,
+              session.correctAnswers + session.wrongAnswers < maximumRounds else { return false }
+        roundNumber = session.correctAnswers + session.wrongAnswers + 1
+        cards = min(session.cards, session.correctAnswers)
+        lifeHalves = GameConfig.startingLifeHalves
         result.correctAnswers = session.correctAnswers
         result.wrongAnswers = session.wrongAnswers
-        result.doubleCardsAnswered = session.doubleCardsAnswered
-        result.bonusCards = session.bonusCards
-        result.cardsEarned = session.cards
+        result.cardsEarned = cards
         // A run that comes back already on its last life is owed the same
         // rescue as one that gets there in front of us.
         if lifeHalves > 0, lifeHalves <= GameConfig.rescueHeartLifeThresholdHalves {
@@ -317,29 +314,16 @@ public final class MemoryGame {
 
         let outcome: AnswerOutcome
         if option.isCorrect {
-            // A caught bonus fish or a successful early golden approach
-            // doubles this answer.
-            let earned = usesBonusFish
-                ? GameConfig.normalCardReward * GameConfig.bonusFishMultiplier
-                : GameConfig.normalCardReward
-            cards += earned
+            cards += 1
             result.correctAnswers += 1
-            result.cardsEarned += earned
-            if usesBonusFish {
-                result.doubleCardsAnswered += 1
-            }
-            result.bonusCards += earned - GameConfig.normalCardReward
-            advanceHeartFishProgressIfNeeded()
-            outcome = .correct(cardsEarned: earned,
-                               usedBonusFish: usesBonusFish)
+            outcome = .correct(cardsEarned: 1, usedBonusFish: false)
         } else {
             result.wrongAnswers += 1
-            let lifeCost = overrideWrongAnswerCostHalves
-                ?? GameConfig.wrongAnswerCostHalves
-            spendLifeHalves(lifeCost)
+            cards = max(0, cards - 1)
             outcome = .wrong(correctOptionID: round.correctOption?.id ?? optionID,
-                             lostHalfLife: lifeCost == 1)
+                             lostHalfLife: false)
         }
+        result.cardsEarned = cards
         lastOutcome = outcome
         return outcome
     }
@@ -418,13 +402,13 @@ public final class MemoryGame {
         finish(reason: .timeExpired)
     }
 
-    /// Installs the next round after a correct answer. Ten correct answers make
-    /// a stage; the final stage completes exactly at the board target.
+    /// Every answered question advances the run, including a wrong answer.
+    /// The session ends after exactly the board's fixed question count.
     @discardableResult
     public func advance() -> GameState {
         guard state == .roundComplete else { return state }
 
-        if result.correctAnswers >= board.maximum {
+        if completedQuestions >= maximumRounds {
             finish(reason: .roundsCompleted)
             return state
         }

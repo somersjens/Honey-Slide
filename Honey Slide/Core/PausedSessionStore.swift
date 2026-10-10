@@ -99,7 +99,6 @@ public struct PausedSession: Codable, Equatable, Sendable {
             && wrongAnswers >= 0
             && (heartFishProgress ?? 0) >= 0
             && (heartFishTarget ?? GameConfig.heartFishCorrectAnswers) >= 1
-            && (timeRemainingSeconds ?? 1) > 0
             && (answerPaces?.count ?? 0) <= correctAnswers
             && (currentQuestionElapsedSeconds ?? 0) >= 0
     }
@@ -126,7 +125,9 @@ public final class PausedSessionStore {
     }
 
     public func session(_ board: LevelBoard) -> PausedSession? {
-        session(forBoardID: board.storageID)
+        guard let session = session(forBoardID: board.storageID),
+              session.correctAnswers + session.wrongAnswers < board.maximum else { return nil }
+        return session
     }
 
     public func hasPausedSession(forBoardID boardID: String) -> Bool {
