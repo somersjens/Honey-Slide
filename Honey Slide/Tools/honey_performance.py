@@ -48,7 +48,7 @@ func L(key: String) -> String { key == "honey.pause" ? "Pauze" : "Antwoord" }
 enum Currency { static let name = "Honey" }
 struct CurrencyIcon: View {
     let size: CGFloat
-    var body: some View { HoneyPotIllustration().frame(width: size, height: size) }
+    var body: some View { Image(systemName: "drop.fill").resizable().scaledToFit().frame(width: size, height: size) }
 }
 final class RenderBenchmark {
     static var totals: [String: Double] = [:]
@@ -59,11 +59,18 @@ final class RenderBenchmark {
     static func reset() { totals.removeAll(keepingCapacity: true); counts.removeAll(keepingCapacity: true) }
 }
 '''
+# Historical renderer snapshots used the shared currency pot inside the HUD.
+# Keep that artwork in baseline runs; the current HUD owns its pot directly.
+if "CurrencyIcon(size: 71 * scale)" in source:
+    prefix = prefix.replace('Image(systemName: "drop.fill").resizable().scaledToFit()', 'HoneyPotIllustration()')
 driver = r'''
 private struct BenchmarkScene: View {
     let simulation: HoneySlideSimulation
     let phone: Bool
     let bear: NSImage
+    var prompt = "8 + 5 = ?"
+    var score = 4
+    var missedChallenge = "8 + 5 = 13"
     var body: some View {
         GeometryReader { proxy in
             let scale = min(proxy.size.width / 1600, proxy.size.height / 900)
@@ -78,10 +85,10 @@ private struct BenchmarkScene: View {
                     .position(x: player.x / 1600 * proxy.size.width, y: proxy.size.height * 0.735)
                 HoneyTubeWater(simulation: simulation, foreground: true)
                 VStack {
-                    HoneyHUD(scale: scale, width: proxy.size.width, prompt: "8 + 5 = ?",
-                        score: 4, canPause: true, penaltyProgress: simulation.penaltyProgress,
+                    HoneyHUD(scale: scale, width: proxy.size.width, prompt: prompt,
+                        score: score, canPause: true, penaltyProgress: simulation.penaltyProgress,
                         showsFeedback: simulation.feedbackRemaining > 0 && !simulation.lastWasCorrect,
-                        missedChallenge: "8 + 5 = 13", onPause: {}).equatable()
+                        missedChallenge: missedChallenge, onPause: {}).equatable()
                     Spacer()
                 }
                 .foregroundStyle(.white)
@@ -171,6 +178,20 @@ if "let rider: Image?" in source:
 if "private struct HoneyHUDAnchors" in source:
     driver = driver.replace("if let anchor { HoneyCollectionFlight(simulation: simulation, target: proxy[anchor]) }",
         "if let score = anchor.score, simulation.hasVisibleImpact { HoneyCollectionFlight(simulation: simulation, target: proxy[score], penaltyTarget: anchor.penalty.map { proxy[$0] }) }")
+if "let collectionTarget: CGRect?" in source:
+    driver = driver.replace("HoneySlideWorld(simulation: simulation, rider: Image(nsImage: bear))", "Color.clear")
+    driver = driver.replace("            .overlayPreferenceValue(HoneyScoreAnchor.self)", '''            .backgroundPreferenceValue(HoneyScoreAnchor.self) { anchor in
+                GeometryReader { background in
+                    HoneySlideWorld(simulation: simulation, rider: Image(nsImage: bear),
+                        collectionTarget: anchor.score.map { background[$0] })
+                }
+            }
+            .overlayPreferenceValue(HoneyScoreAnchor.self)''')
+    driver = driver.replace("if let score = anchor.score, simulation.hasVisibleImpact { HoneyCollectionFlight(simulation: simulation, target: proxy[score], penaltyTarget: anchor.penalty.map { proxy[$0] }) }",
+        "if let penalty = anchor.penalty, simulation.penaltyProgress != nil { HoneyPenaltyFlash(simulation: simulation, target: proxy[penalty]) }")
+if "private struct HoneyImpactEffects:" in source:
+    driver = driver.replace("if let penalty = anchor.penalty, simulation.penaltyProgress != nil { HoneyPenaltyFlash(simulation: simulation, target: proxy[penalty]) }",
+        "HoneyImpactEffects(simulation: simulation, rider: Image(nsImage: bear), reduceMotion: false, target: anchor.score.map { proxy[$0] }, penaltyTarget: anchor.penalty.map { proxy[$0] })")
 if args.simulator_app:
     if not args.assets:
         parser.error("--simulator-app requires --assets /path/to/built.app")
@@ -220,12 +241,14 @@ struct PerformanceHost: View {
     @State private var sim = HoneySlideSimulation()
     @State private var previous: Double?
     @State private var finished = false
+    @State private var missed = ""
     let engine = MemoryGame(level: MathLevel(topic: .addition, index: 6), seed: 79)
     let cadence = CadenceStatistics()
     let bear = UIImage(named: "1_bear")!
     // CLOCK_DECLARATION
     var body: some View {
-        BenchmarkScene(simulation: sim, phone: UIDevice.current.userInterfaceIdiom == .phone, bear: bear)
+        BenchmarkScene(simulation: sim, phone: UIDevice.current.userInterfaceIdiom == .phone, bear: bear,
+            prompt: engine.round?.question.prompt ?? "…", score: max(0, engine.cards - sim.pendingHoney), missedChallenge: missed)
             .ignoresSafeArea()
             .onAppear {
                 _ = engine.start(); _ = engine.turnCardsOver(); _ = engine.beginAnswering()
@@ -245,6 +268,9 @@ struct PerformanceHost: View {
         }
         sim.advance(seconds: dt)
         if let round = engine.round, let hit = sim.crossing(roundID: round.id) {
+            if !hit.option.isCorrect, let correct = round.correctOption {
+                missed = round.question.prompt.replacingOccurrences(of: "?", with: correct.text)
+            }
             sim.markSelected(checkpointID: hit.checkpointID, index: hit.index, correct: hit.option.isCorrect)
             _ = engine.select(optionID: hit.option.id); _ = engine.finishResolving(); engine.advance()
             _ = engine.turnCardsOver(); _ = engine.beginAnswering()

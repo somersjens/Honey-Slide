@@ -17,9 +17,9 @@ enum HoneySlideRules {
     static let checkpointSpacing = forwardSpeed * checkpointInterval
     static let firstCheckpointPosition = playerAhead + checkpointSpacing
     static let straightHalfLength = 350.0
-    static let collectionDuration = 1.05
+    static let collectionDuration = 0.65
     static let tumbleDuration = 0.95
-    static let penaltyDuration = 1.5
+    static let penaltyDuration = 1.15
     // The same world span defines the visible walls and their physical funnel.
     static let dividerLead = 210.0
     static let dividerTail = 60.0
@@ -137,7 +137,7 @@ enum HoneySlideRules {
         let relative = max(0, depth) / playerDepth
         // Preserve small distant targets, then continue with a matching slope
         // through contact. Near pots no longer outgrow their lane separation.
-        return 2.448 * (relative <= 1 ? pow(relative, 1.4)
+        return 1.88 * (relative <= 1 ? pow(relative, 1.4)
                        : relative + 0.4 * (1 - exp(-(relative - 1))))
     }
 

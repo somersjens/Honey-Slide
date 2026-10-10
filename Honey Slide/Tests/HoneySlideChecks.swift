@@ -11,9 +11,67 @@ import CoreGraphics
         checkAnswerLayout()
         checkCameraPassage()
         checkImpactLifecycle()
+        checkCollectionMotion()
         checkStraightLandings()
         checkCachedProjection()
         print("PASS: continuous course and camera passage, straight checkpoint landings with stable dividers, contact-owned pot impacts and delayed Honey collection, collision-timed shutters, fixed-question sessions and ±1 scoring, constant travel, tap steering, ten-minute projection and undistorted pot proportions")
+    }
+
+    private static func checkCollectionMotion() {
+        // All lanes and phone/tablet proportions: the first pose must match
+        // the contact pot, the last must match the HUD, and neither can snap.
+        for viewport in [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834)] {
+            for lane in -1...1 {
+                let hudScale = min(viewport.width / 1600, viewport.height / 900)
+                let ground = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
+                    lateral: Double(lane) * HoneySlideRules.laneSpacing, distance: 0)
+                let potScale = HoneySlideRules.answerScale(depth: HoneySlideRules.playerDepth)
+                let origin = CGPoint(x: ground.x / 1600 * viewport.width,
+                    y: ground.y / 900 * viewport.height - 61 * potScale * viewport.width / 1600)
+                let safeInset = viewport.width == 852 ? 59.0 : 0
+                let target = CGPoint(x: viewport.width - safeInset - (58 + 127.5) * hudScale, y: 92 * hudScale)
+                let initialScale = potScale * viewport.width / 1600 / 2
+                let finalScale = 71 * hudScale / 308
+                let signWidth = min(viewport.width * 0.5, 760 * hudScale)
+                let sign = CGRect(x: (viewport.width - signWidth) / 2, y: 32 * hudScale,
+                                  width: signWidth, height: 120 * hudScale)
+                func pose(_ progress: Double) -> HoneyCollectionMotion {
+                    HoneyCollectionMotion(progress: progress, origin: origin, target: target,
+                                          initialScale: initialScale, finalScale: finalScale)
+                }
+                assert(pose(0).center == origin && pose(0).scale == initialScale && pose(0).rotation == 0)
+                assert(pose(1).center == target && abs(pose(1).scale - finalScale) < 1e-12)
+                var previous = pose(0)
+                var lowestY = origin.y
+                var landingStarted = false
+                for frame in 1...1000 {
+                    let current = pose(Double(frame) / 1000)
+                    let direction = target.x >= origin.x ? 1.0 : -1
+                    assert(direction * (current.center.x - previous.center.x) >= -1e-9)
+                    assert(direction * (target.x - current.center.x) >= -1e-9)
+                    lowestY = min(lowestY, current.center.y)
+                    if current.center.y > previous.center.y { landingStarted = true }
+                    if landingStarted {
+                        assert(current.center.y >= previous.center.y)
+                        assert(current.center.y <= target.y)
+                    }
+                    assert(current.scale <= previous.scale && current.scale >= finalScale - 1e-12)
+                    assert(hypot(current.center.x - previous.center.x, current.center.y - previous.center.y) < 3)
+                    let bounds = CGRect(x: current.center.x - 154 * current.scale,
+                        y: current.center.y - 166 * current.scale, width: 308 * current.scale, height: 332 * current.scale)
+                    assert(!bounds.intersects(sign), "Collecting pot disappeared behind the question sign")
+                    previous = current
+                }
+                assert(landingStarted && lowestY < target.y - 332 * finalScale * 0.15)
+                // Position and size settle without an end-of-flight wobble.
+                for t in [0.00001, 0.99999] {
+                    let endpoint = t < 0.5 ? pose(0) : pose(1)
+                    let near = pose(t)
+                    assert(hypot(near.center.x - endpoint.center.x, near.center.y - endpoint.center.y) < 0.0001)
+                    assert(abs(near.scale - endpoint.scale) < 0.00001)
+                }
+            }
+        }
     }
 
     private static func checkCachedProjection() {
@@ -419,8 +477,8 @@ import CoreGraphics
 
     private static func checkAnswerLayout() {
         let contact = HoneySlideRules.answerScale(depth: HoneySlideRules.playerDepth)
-        let previousContact = 0.12 + HoneySlideRules.playerDepth * 1.8
-        assert(abs(contact / previousContact - 1.5) < 0.000001)
+        let riderWidth = min(1600 * 0.285, 900 * 0.43)
+        assert((154 * contact / riderWidth) > 0.74 && (154 * contact / riderWidth) < 0.80)
         assert(HoneySlideRules.answerScale(depth: 0.1) < 0.24)
         assert(HoneySlideRules.answerScale(depth: 0.2) < 0.48)
         // Check every bend over ten minutes, including shadows and honey caps.

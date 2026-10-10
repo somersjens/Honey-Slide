@@ -18,14 +18,35 @@ enum Currency {
     static let name = "Honey"
 }
 
-/// The same sculpted honey pot as the answers on the slide.
+/// A simple, single-colour Honey glyph for menus, rewards and intro screens.
+/// The sculpted pot belongs to the playfield and its score counter.
 struct CurrencyIcon: View {
     let size: CGFloat
 
     var body: some View {
-        HoneyPotIllustration()
+        HoneyCurrencyGlyph()
             .frame(width: size, height: size)
             .accessibilityHidden(true)
+    }
+}
+
+/// A lid and a broad, rounded jar, filled with the surrounding text colour.
+/// This vector keeps menu currency legible even at small icon sizes.
+private struct HoneyCurrencyGlyph: Shape {
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.addRoundedRect(in: CGRect(x: 24, y: 7, width: 52, height: 13), cornerSize: CGSize(width: 5, height: 5))
+        p.move(to: CGPoint(x: 30, y: 25))
+        p.addLine(to: CGPoint(x: 70, y: 25))
+        p.addCurve(to: CGPoint(x: 88, y: 56), control1: CGPoint(x: 71, y: 37), control2: CGPoint(x: 88, y: 38))
+        p.addCurve(to: CGPoint(x: 77, y: 91), control1: CGPoint(x: 91, y: 74), control2: CGPoint(x: 88, y: 89))
+        p.addQuadCurve(to: CGPoint(x: 23, y: 91), control: CGPoint(x: 50, y: 98))
+        p.addCurve(to: CGPoint(x: 12, y: 56), control1: CGPoint(x: 12, y: 89), control2: CGPoint(x: 9, y: 74))
+        p.addCurve(to: CGPoint(x: 30, y: 25), control1: CGPoint(x: 12, y: 38), control2: CGPoint(x: 29, y: 37))
+        p.closeSubpath()
+        let scale = min(rect.width, rect.height) / 100
+        return p.applying(CGAffineTransform(scaleX: scale, y: scale))
+            .offsetBy(dx: rect.midX - 50 * scale, dy: rect.midY - 50 * scale)
     }
 }
 

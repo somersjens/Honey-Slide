@@ -27,7 +27,7 @@ struct HoneySlidePlayfield: View {
         GeometryReader { proxy in
             let scale = min(proxy.size.width / 1600, proxy.size.height / 900)
             ZStack {
-                HoneySlideWorld(simulation: simulation, rider: Image("1_bear"), reduceMotion: reduceMotion)
+                Color.clear
                     .contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance: 0).onChanged { value in
                         guard running else { return }
@@ -52,12 +52,18 @@ struct HoneySlidePlayfield: View {
                 .padding(.top, proxy.safeAreaInsets.top + max(10, 32 * scale))
                 .padding(.bottom, max(proxy.safeAreaInsets.bottom, 34 * scale))
             }
-            .overlayPreferenceValue(HoneyScoreAnchor.self) { anchor in
-                if let score = anchor.score, simulation.hasVisibleImpact {
-                    HoneyCollectionFlight(simulation: simulation, target: proxy[score],
-                        penaltyTarget: anchor.penalty.map { proxy[$0] })
-                        .allowsHitTesting(false).accessibilityHidden(true)
+            .backgroundPreferenceValue(HoneyScoreAnchor.self) { anchor in
+                GeometryReader { background in
+                    HoneySlideWorld(simulation: simulation, rider: Image("1_bear"), reduceMotion: reduceMotion,
+                                    collectionTarget: anchor.score.map { background[$0] })
                 }
+            }
+            .overlayPreferenceValue(HoneyScoreAnchor.self) { anchor in
+                // Keep the effects and numbered textures mounted before a hit.
+                // One layer carries the pot all the way above the HUD.
+                HoneyImpactEffects(simulation: simulation, rider: Image("1_bear"), reduceMotion: reduceMotion,
+                    target: anchor.score.map { proxy[$0] }, penaltyTarget: anchor.penalty.map { proxy[$0] })
+                    .allowsHitTesting(false).accessibilityHidden(true)
             }
             .contentShape(Rectangle())
 
@@ -165,10 +171,13 @@ private struct HoneySlideWorld: View {
     let simulation: HoneySlideSimulation
     let rider: Image?
     let reduceMotion: Bool
-    init(simulation: HoneySlideSimulation, rider: Image? = nil, reduceMotion: Bool = false) {
+    let collectionTarget: CGRect?
+    init(simulation: HoneySlideSimulation, rider: Image? = nil, reduceMotion: Bool = false,
+         collectionTarget: CGRect? = nil) {
         self.simulation = simulation
         self.rider = rider
         self.reduceMotion = reduceMotion
+        self.collectionTarget = collectionTarget
     }
     private var distance: Double { simulation.elapsed }
     var body: some View {
@@ -179,16 +188,7 @@ private struct HoneySlideWorld: View {
             drawWorld(&c, projection: projection, billboardYScale: HoneySlideRules.billboardVerticalScale(viewport: size))
             if rider != nil {
                 HoneyTubeWater.draw(in: context, size: size, simulation: simulation, foreground: false, reduceMotion: reduceMotion)
-                if let bear = context.resolveSymbol(id: "rider") {
-                    let width = min(size.width * 0.285, size.height * 0.43)
-                    let player = ridingPoint(HoneySlideRules.playerDepth, simulation.lateral)
-                    let bob = reduceMotion ? 0 : sin(distance * 6.5) * 4 * min(size.width / 1600, size.height / 900)
-                    var sprite = context
-                    sprite.translateBy(x: player.x / 1600 * size.width, y: size.height * 0.735 + bob)
-                    sprite.rotate(by: .degrees(reduceMotion ? 0 : simulation.tubeHeading))
-                    sprite.scaleBy(x: width / 400, y: width / 400)
-                    sprite.draw(bear, at: .zero)
-                }
+                HoneyRiderDrawing.draw(in: context, size: size, simulation: simulation, reduceMotion: reduceMotion)
                 HoneyTubeWater.draw(in: context, size: size, simulation: simulation, foreground: true, reduceMotion: reduceMotion)
             }
         } symbols: {
@@ -364,8 +364,9 @@ private struct HoneySlideWorld: View {
                 CGPoint(x: p.x, y: p.y - HoneySlideRules.railHeight * pow(depth, 1.2))
             }
             var wall = Path()
-            wall.addLines(feet)
-            wall.addLines(tops.reversed())
+            // addLines starts a new subpath. Both edges must be submitted
+            // together, otherwise each closes across the entire winding course.
+            wall.addLines(feet + tops.reversed())
             wall.closeSubpath()
             c.fill(wall, with: .linearGradient(Gradient(colors: [
                 Color(red: 0.86, green: 0.56, blue: 0.23), Color(red: 0.43, green: 0.21, blue: 0.07)]),
@@ -409,7 +410,7 @@ private struct HoneySlideWorld: View {
             left.append(CGPoint(x: points[i].x + nx, y: points[i].y + ny))
             right.append(CGPoint(x: points[i].x - nx, y: points[i].y - ny))
         }
-        var path = Path(); path.addLines(left); path.addLines(right.reversed()); path.closeSubpath()
+        var path = Path(); path.addLines(left + right.reversed()); path.closeSubpath()
         return path
     }
 
@@ -585,7 +586,7 @@ private struct HoneySlideWorld: View {
             guard ahead > HoneySlideRules.nearClipAhead else { continue }
             for i in 0..<3 {
                 let selected = row.selectedIndex == i
-                if selected && row.wasCorrect { continue }
+                if selected && row.wasCorrect && collectionTarget != nil { continue }
                 let tumble = selected ? min(1, (distance - (row.impactAt ?? distance)) / HoneySlideRules.tumbleDuration) : 0
                 if selected && tumble >= 1 { continue }
                 let bounds = HoneySlideRules.potBounds(depth: t, lateral: Double(i - 1) * 0.66,
@@ -596,18 +597,44 @@ private struct HoneySlideWorld: View {
                 var potContext = rowContext
                 potContext.translateBy(x: p.x, y: p.y)
                 potContext.scaleBy(x: 1, y: billboardYScale)
-                if selected {
+                if selected && !row.wasCorrect {
                     let side = i == 0 ? -1.0 : 1.0
                     drawImpactSplash(&potContext, scale: s, progress: tumble, side: side)
-                    let tip = 1 - pow(1 - min(1, tumble / 0.78), 3)
-                    potContext.translateBy(x: side * 24 * s * tumble, y: 25 * s * tumble * tumble)
-                    potContext.rotate(by: .degrees(side * tip * 108))
-                    potContext.scaleBy(x: 1, y: 1 - tumble * 0.26)
-                    potContext.opacity *= min(1, (1 - tumble) / 0.27)
+                    drawSinkingPot(&potContext, scale: s, progress: tumble, side: side, text: row.options[i].text)
+                    continue
                 }
                 barrel(&potContext, scale: s, text: row.options[i].text, opening: row.shutterProgress(at: distance))
             }
         }
+    }
+
+    private func drawSinkingPot(_ c: inout GraphicsContext, scale s: Double, progress: Double, side: Double, text: String) {
+        // The surface occludes the solid pot as it tips and sinks. Its image
+        // never fades; honey folds close over the last exposed part.
+        var sinking = c
+        sinking.clip(to: Path(CGRect(x: -240 * s, y: -240 * s, width: 480 * s, height: 262 * s)))
+        let tip = 1 - pow(1 - min(1, progress / 0.65), 3)
+        sinking.translateBy(x: side * 12 * s * sin(progress * .pi), y: 205 * s * progress * progress)
+        sinking.rotate(by: .degrees(side * tip * 38))
+        sinking.scaleBy(x: 1, y: 1 - progress * 0.18)
+        barrel(&sinking, scale: s, text: text, opening: 1)
+
+        let swell = sin(progress * .pi)
+        let radius = (42 + progress * 39) * s
+        let y = 21 * s
+        var lip = Path()
+        lip.move(to: CGPoint(x: -radius, y: y))
+        lip.addCurve(to: CGPoint(x: radius, y: y),
+            control1: CGPoint(x: -radius * 0.55, y: y - 36 * s * swell),
+            control2: CGPoint(x: radius * 0.52, y: y - 29 * s * swell))
+        lip.addQuadCurve(to: CGPoint(x: -radius, y: y), control: CGPoint(x: 0, y: y + 21 * s * swell))
+        c.fill(lip, with: .linearGradient(Gradient(colors: [.yellow, Color(red: 1, green: 0.65, blue: 0.015)]),
+            startPoint: CGPoint(x: 0, y: y - 28 * s), endPoint: CGPoint(x: 0, y: y + 14 * s)))
+        var gloss = Path()
+        gloss.move(to: CGPoint(x: -radius * 0.70, y: y - 4 * s * swell))
+        gloss.addQuadCurve(to: CGPoint(x: radius * 0.65, y: y - 5 * s * swell),
+            control: CGPoint(x: 0, y: y - 28 * s * swell))
+        c.stroke(gloss, with: .color(.white.opacity(0.7 * swell)), style: StrokeStyle(lineWidth: 3 * s, lineCap: .round))
     }
 
     private func drawImpactSplash(_ c: inout GraphicsContext, scale s: Double, progress: Double, side: Double) {
@@ -758,6 +785,22 @@ private struct HoneySlideWorld: View {
         }
     }
 
+
+}
+
+private enum HoneyRiderDrawing {
+    static func draw(in context: GraphicsContext, size: CGSize, simulation: HoneySlideSimulation, reduceMotion: Bool) {
+        guard let bear = context.resolveSymbol(id: "rider") else { return }
+        let width = min(size.width * 0.285, size.height * 0.43)
+        let player = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
+            lateral: simulation.lateral, distance: simulation.elapsed)
+        let bob = reduceMotion ? 0 : sin(simulation.elapsed * 6.5) * 4 * min(size.width / 1600, size.height / 900)
+        var sprite = context
+        sprite.translateBy(x: player.x / 1600 * size.width, y: size.height * 0.735 + bob)
+        sprite.rotate(by: .degrees(reduceMotion ? 0 : simulation.tubeHeading))
+        sprite.scaleBy(x: width / 400, y: width / 400)
+        sprite.draw(bear, at: .zero)
+    }
 }
 
 /// Displaced honey follows both the tube's footprint and its steering angle.
@@ -1162,7 +1205,7 @@ private struct HoneyClosedPotSymbol: View, Equatable {
     }
 }
 
-/// Shared artwork also powers currency badges and the collected-pot flight.
+/// Sculpted artwork for the playfield, its score counter and pot collection.
 struct HoneyPotIllustration: View, Equatable {
     var text: String? = nil
     var body: some View {
@@ -1192,64 +1235,90 @@ private struct HoneyScoreAnchor: PreferenceKey {
     }
 }
 
-private struct HoneyCollectionFlight: View {
+/// Permanently mounted, lightweight effects above the HUD. Numbered images
+/// are warmed with the course textures, before the collision that uses them.
+private struct HoneyImpactEffects: View {
     let simulation: HoneySlideSimulation
-    let target: CGRect
-    var penaltyTarget: CGRect? = nil
+    let rider: Image
+    let reduceMotion: Bool
+    let target: CGRect?
+    let penaltyTarget: CGRect?
+    private var potTexts: [String] {
+        Array(Set(simulation.checkpoints.prefix(4).flatMap { $0.options.map(\.text) }
+                  + simulation.impacts.map(\.text))).sorted()
+    }
     var body: some View {
-        Canvas(rendersAsynchronously: true) { context, size in
-            if let rect = penaltyTarget, let progress = simulation.penaltyProgress,
+        Canvas { context, size in
+            drawCollection(in: context, size: size)
+            if let progress = simulation.penaltyProgress, let target = penaltyTarget,
                let penalty = context.resolveSymbol(id: "penalty") {
                 var badge = context
-                let pulse = 1 + sin(min(1, progress * 5) * .pi) * 0.2
-                badge.opacity = min(1, (1 - progress) * 5)
-                badge.translateBy(x: rect.midX, y: rect.midY)
-                badge.scaleBy(x: rect.width / 94 * pulse, y: rect.width / 94 * pulse)
+                let pulse = 1 + sin(min(1, progress * 5) * .pi) * 0.14
+                badge.opacity = min(1, (1 - progress) * 7)
+                badge.translateBy(x: target.midX, y: target.midY)
+                badge.scaleBy(x: target.width / 120 * pulse, y: target.width / 120 * pulse)
                 badge.draw(penalty, at: .zero)
             }
-            for impact in simulation.impacts where impact.correct {
-                let progress = impact.progress(at: simulation.elapsed)
-                guard progress < 1, let pot = context.resolveSymbol(id: impact.id) else { continue }
-                let origin = CGPoint(x: impact.origin.x / 1600 * size.width,
-                                     y: impact.origin.y / 900 * size.height - 61 * impact.scale * size.width / 1600)
-                let end = CGPoint(x: target.midX, y: target.midY)
-                let arc = CGPoint(x: origin.x + (end.x - origin.x) * 0.2,
-                                  y: min(origin.y, end.y) - min(170, size.height * 0.25))
-                let u = progress, v = 1 - u
-                let p = CGPoint(x: v * v * origin.x + 2 * v * u * arc.x + u * u * end.x,
-                                y: v * v * origin.y + 2 * v * u * arc.y + u * u * end.y)
-                let initialScale = impact.scale * size.width / 1600 / 2
-                let finalScale = min(target.width / 308, target.height / 332)
-                let s = initialScale + (finalScale - initialScale) * pow(u, 0.8)
-                // A short warm trail follows the pot; no green +1 is drawn.
-                if progress > 0.04 && progress < 0.92 {
-                    for i in 1...5 {
-                        let trail = max(0, progress - Double(i) * 0.025), back = 1 - trail
-                        let q = CGPoint(x: back * back * origin.x + 2 * back * trail * arc.x + trail * trail * end.x,
-                                        y: back * back * origin.y + 2 * back * trail * arc.y + trail * trail * end.y)
-                        let radius = max(2, 8 * s) * (1 - Double(i) / 7)
-                        context.fill(Path(ellipseIn: CGRect(x: q.x - radius, y: q.y - radius,
-                                      width: radius * 2, height: radius * 2)),
-                                     with: .color(.yellow.opacity(0.45 - Double(i) * 0.055)))
-                    }
-                }
-                var flying = context
-                flying.translateBy(x: p.x, y: p.y)
-                flying.rotate(by: .degrees(sin(u * .pi) * -13))
-                flying.scaleBy(x: s, y: s)
-                flying.draw(pot, at: .zero)
-            }
         } symbols: {
-            Text("−1").font(.system(size: 68, weight: .black, design: .rounded))
+            ForEach(potTexts, id: \.self) { text in
+                HoneyBitmapSymbol(key: "pot:\(text)", size: CGSize(width: 308, height: 332),
+                    content: HoneyPotIllustration(text: text)).equatable().tag("pot:\(text)")
+            }
+            rider.resizable().scaledToFit().frame(width: 400, height: 400 * 1312 / 1247).tag("rider")
+            Text("−1").font(.system(size: 90, weight: .black, design: .rounded))
                 .foregroundStyle(Color(red: 0.79, green: 0.085, blue: 0.08))
                 .shadow(color: .white.opacity(0.6), radius: 0, y: 2)
-                .frame(width: 94).tag("penalty")
-            ForEach(simulation.impacts.filter(\.correct)) { impact in
-                HoneyBitmapSymbol(key: "pot:\(impact.text)", size: CGSize(width: 308, height: 332),
-                    content: HoneyPotIllustration(text: impact.text)).equatable().tag(impact.id)
+                .frame(width: 120).tag("penalty")
+        }
+    }
+
+    private func drawCollection(in context: GraphicsContext, size: CGSize) {
+        guard let target = target else { return }
+        for impact in simulation.impacts where impact.correct {
+            let progress = impact.progress(at: simulation.elapsed)
+            guard progress < 1, let pot = context.resolveSymbol(id: "pot:\(impact.text)") else { continue }
+            // Convert the same ground anchor, center offset and uniform scale
+            // used by barrel. At contact this is exactly the pot's last pose.
+            let origin = CGPoint(x: impact.origin.x / 1600 * size.width,
+                                 y: impact.origin.y / 900 * size.height - 61 * impact.scale * size.width / 1600)
+            let end = CGPoint(x: target.midX, y: target.midY)
+            let initialScale = impact.scale * size.width / 1600 / 2
+            let finalScale = min(target.width / 308, target.height / 332)
+            let motion = HoneyCollectionMotion(progress: progress, origin: origin, target: end,
+                                               initialScale: initialScale, finalScale: finalScale)
+            // Small droplets follow the path; the pot itself stays opaque.
+            if progress > 0.04 && progress < 0.92 {
+                for i in 1...4 {
+                    let trail = HoneyCollectionMotion(progress: max(0, progress - Double(i) * 0.035),
+                        origin: origin, target: end, initialScale: initialScale, finalScale: finalScale)
+                    let radius = max(2, 8 * motion.scale) * (1 - Double(i) / 6)
+                    context.fill(Path(ellipseIn: CGRect(x: trail.center.x - radius, y: trail.center.y - radius,
+                        width: radius * 2, height: radius * 2)),
+                        with: .color(.yellow.opacity(0.40 - Double(i) * 0.065)))
+                }
+            }
+            func drawPot(_ context: GraphicsContext) {
+                var flying = context
+                flying.translateBy(x: motion.center.x, y: motion.center.y)
+                flying.rotate(by: .degrees(motion.rotation))
+                flying.scaleBy(x: motion.scale, y: motion.scale)
+                flying.draw(pot, at: .zero)
+            }
+            if progress < 0.5 {
+                // Erase only the rider's actual alpha silhouette from the
+                // flight. The world already contains that same bear pose.
+                // No image handoff, fade or z-order jump is needed later.
+                context.drawLayer { behind in
+                    drawPot(behind)
+                    behind.blendMode = .destinationOut
+                    HoneyRiderDrawing.draw(in: behind, size: size, simulation: simulation, reduceMotion: reduceMotion)
+                }
+            } else {
+                drawPot(context)
             }
         }
     }
+
 }
 
 private struct HoneyHUD: View, Equatable {
@@ -1285,34 +1354,24 @@ private struct HoneyHUD: View, Equatable {
                 .accessibilityLabel(L(key: "honey.pause"))
                 Spacer()
                 HStack(spacing: 10 * scale) {
-                    CurrencyIcon(size: 71 * scale)
+                    HoneyPotIllustration()
+                        .frame(width: 71 * scale, height: 71 * 166 / 154 * scale)
                         .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(score: $0) }
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(Currency.name).font(.system(size: 22 * scale, weight: .bold, design: .rounded))
-                        HStack(alignment: .firstTextBaseline, spacing: 10 * scale) {
-                            Text("\(score)").monospacedDigit()
-                                .font(.system(size: 48 * scale, weight: .black, design: .rounded))
-                                .contentTransition(.numericText())
-                            Text("−1")
-                                    .font(.system(size: 34 * scale, weight: .black, design: .rounded))
-                                    .foregroundStyle(Color(red: 0.79, green: 0.085, blue: 0.08))
-                                    .shadow(color: .white.opacity(0.6), radius: 0, y: scale)
-                                    .frame(width: 47 * scale, alignment: .leading)
-                                    .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(penalty: $0) }
-                                    // Its cached glyph animates in the effects
-                                    // Canvas; the HUD only changes on events.
-                                    .opacity(0)
-                                    .accessibilityHidden(penaltyProgress == nil)
-                                    .accessibilityIdentifier("honey-penalty")
-                        }
-                    }
+                    Text("\(score)").monospacedDigit()
+                        .font(.system(size: 48 * scale, weight: .black, design: .rounded))
+                        // Only two digits are reserved. The red −1 occupies
+                        // this exact position, then exposes the updated score.
+                        .frame(width: 64 * scale)
+                        .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(penalty: $0) }
+                        .opacity(penaltyProgress == nil ? 1 : 0)
                 }
-                .padding(.horizontal, 22 * scale)
-                .frame(minWidth: 244 * scale, minHeight: 120 * scale)
+                .padding(.horizontal, 18 * scale)
+                .frame(height: 120 * scale)
                 .foregroundStyle(Color(red: 0.25, green: 0.10, blue: 0.03))
                 .background(HoneyQuestionSign(showsHoney: false))
                 .shadow(color: .brown.opacity(0.3), radius: 0, y: 5 * scale)
                 .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(Currency.name) \(score)")
                 .accessibilityIdentifier("honey-score")
             }
             VStack(spacing: 9 * scale) {
@@ -1447,28 +1506,35 @@ private struct HoneyQuestionSign: View {
                 startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height)))
             c.stroke(Path(roundedRect: inset, cornerRadius: max(1, radius - border)), with: .color(.orange.opacity(0.8)), lineWidth: max(1, border * 0.4))
             if showsHoney {
-                // A continuous rolled honey edge follows the rounded sign;
-                // asymmetric tongues hang from it only on the question panel.
-                let left = radius * 0.55, right = size.width - left
+                // A gathered ribbon stops before the capsule's round ends.
+                // Broad, irregular folds and short gloss marks give it volume.
+                let left = radius * 1.12, right = size.width - left
+                let span = right - left
                 var rim = Path()
-                rim.move(to: CGPoint(x: left, y: border * 0.55))
-                rim.addQuadCurve(to: CGPoint(x: right, y: border * 0.55),
-                                 control: CGPoint(x: size.width / 2, y: -border * 0.3))
-                rim.addQuadCurve(to: CGPoint(x: right + border, y: border * 2.7),
-                                 control: CGPoint(x: right + border * 3, y: border))
-                for i in stride(from: 12, through: 0, by: -1) {
-                    let x = left + (right - left) * Double(i) / 12
-                    let y = border * (2.4 + sin(Double(i) * 1.7) * 0.45)
-                    rim.addQuadCurve(to: CGPoint(x: x, y: y),
-                                     control: CGPoint(x: x + (right - left) / 24, y: y + border * 0.65))
+                rim.move(to: CGPoint(x: left, y: border * 0.8))
+                rim.addCurve(to: CGPoint(x: right, y: border * 0.8),
+                    control1: CGPoint(x: left + span * 0.28, y: border * 0.05),
+                    control2: CGPoint(x: left + span * 0.74, y: border * 0.25))
+                rim.addQuadCurve(to: CGPoint(x: right - span * 0.045, y: border * 2.6),
+                    control: CGPoint(x: right + border, y: border * 3.6))
+                let folds: [(Double, Double)] = [(0.89, 2.1), (0.78, 3.3), (0.66, 2.3),
+                    (0.53, 3.8), (0.40, 2.8), (0.29, 3.5), (0.17, 2.4), (0.055, 3.0)]
+                var previous = 0.955
+                for (fraction, height) in folds {
+                    rim.addCurve(to: CGPoint(x: left + span * fraction, y: border * height),
+                        control1: CGPoint(x: left + span * (previous - 0.025), y: border * (height + 1.0)),
+                        control2: CGPoint(x: left + span * (fraction + 0.025), y: border * (height + 0.4)))
+                    previous = fraction
                 }
-                rim.closeSubpath()
+                rim.addQuadCurve(to: CGPoint(x: left, y: border * 0.8),
+                    control: CGPoint(x: left - border, y: border * 3.5))
                 c.fill(rim, with: .linearGradient(Gradient(colors: [
-                    Color(red: 1, green: 0.94, blue: 0.41), Color(red: 1, green: 0.66, blue: 0.025)]),
-                    startPoint: .zero, endPoint: CGPoint(x: 0, y: border * 3)))
+                    Color(red: 1, green: 0.96, blue: 0.47), Color(red: 1, green: 0.69, blue: 0.035),
+                    Color(red: 0.95, green: 0.49, blue: 0.01)]),
+                    startPoint: .zero, endPoint: CGPoint(x: 0, y: border * 4.5)))
                 c.stroke(rim, with: .color(.orange.opacity(0.65)), lineWidth: border * 0.22)
-                for (fraction, length, width) in [(0.12, 0.23, 1.8), (0.17, 0.14, 1.3), (0.86, 0.20, 1.65)] {
-                    let drip = CGRect(x: size.width * fraction, y: border * 1.7,
+                for (fraction, length, width) in [(0.09, 0.21, 1.6), (0.14, 0.12, 1.2), (0.85, 0.17, 1.45)] {
+                    let drip = CGRect(x: left + span * fraction, y: border * 2,
                                       width: border * width, height: size.height * length)
                     c.fill(Path(roundedRect: drip, cornerRadius: drip.width / 2), with: .linearGradient(
                         Gradient(colors: [.yellow, Color(red: 1, green: 0.66, blue: 0.025)]),
@@ -1476,12 +1542,14 @@ private struct HoneyQuestionSign: View {
                     let shine = drip.insetBy(dx: drip.width * 0.3, dy: border * 0.6)
                     c.fill(Path(roundedRect: shine, cornerRadius: shine.width / 2), with: .color(.white.opacity(0.65)))
                 }
-                var gloss = Path()
-                gloss.move(to: CGPoint(x: radius, y: border * 1.1))
-                gloss.addQuadCurve(to: CGPoint(x: size.width * 0.72, y: border * 0.9),
-                                   control: CGPoint(x: size.width * 0.42, y: border * 0.2))
-                c.stroke(gloss, with: .color(.white.opacity(0.85)),
-                         style: StrokeStyle(lineWidth: border * 0.35, lineCap: .round))
+                for (start, end) in [(0.04, 0.25), (0.32, 0.58), (0.69, 0.90)] {
+                    var gloss = Path()
+                    gloss.move(to: CGPoint(x: left + span * start, y: border * 1.25))
+                    gloss.addQuadCurve(to: CGPoint(x: left + span * end, y: border * 1.35),
+                        control: CGPoint(x: left + span * (start + end) / 2, y: border * 0.6))
+                    c.stroke(gloss, with: .color(.white.opacity(0.85)),
+                             style: StrokeStyle(lineWidth: border * 0.4, lineCap: .round))
+                }
             }
         }
         .shadow(color: .brown.opacity(0.35), radius: 0, y: 4)

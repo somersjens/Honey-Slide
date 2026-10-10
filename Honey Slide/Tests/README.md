@@ -31,6 +31,13 @@ contact animation. Fixed
 Impact checks verify exactly one effect per contact, preservation of the old
 answer after row promotion, +1 Honey only after the collecting pot reaches the
 counter, a red penalty even at a zero score, pause behavior and effect cleanup.
+Collection-motion checks verify the exact contact/HUD endpoints, continuous
+motion and shrinking across all three lanes on phone/tablet, clearance from the
+question sign, a single apex above the counter followed by a downward landing,
+and zero endpoint velocity. The uninterrupted opaque pot flight takes 0.65
+seconds. Contact pots are smaller than the bear and keep their original aspect
+ratio. The penalty overlays the score digit for 1.15 seconds before the updated
+score appears; no extra HUD space is reserved for it.
 One hundred checkpoint landings verify straight channel geometry through
 approach and passage, plus smooth connections between those landings and bends.
 
