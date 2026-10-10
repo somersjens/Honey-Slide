@@ -92,11 +92,11 @@ public final class MemoryGame {
     /// score animation and incoming swarm.
     private var preparedRounds: [GameRound] = []
 
-    /// The active sum followed by the two sums already generated for the fly
-    /// game's preview column. They are the exact rounds `advance()` will use;
+    /// The active sum followed by the prepared runway ahead on the slide.
+    /// These are the exact rounds `advance()` will use;
     /// previewing them never creates a second question stream.
     public var visibleRounds: [GameRound] {
-        ([round].compactMap { $0 } + preparedRounds).prefix(3).map { $0 }
+        ([round].compactMap { $0 } + preparedRounds).prefix(GameConfig.preparedRoundRunway).map { $0 }
     }
 
     public private(set) var roundNumber = 0

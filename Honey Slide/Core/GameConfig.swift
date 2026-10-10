@@ -61,9 +61,9 @@ public enum GameConfig {
     /// Defensive upper bound for generated questions and restored sessions.
     public static let maximumRoundCeiling = 10_000
 
-    /// Keep a small runway of live rounds ready while allowing a timed run to
-    /// continue well beyond its target without holding thousands of rounds.
-    public static let preparedRoundRunway = 4
+    /// Covers the slide's draw distance even at the shortest checkpoint gap.
+    /// New answer rows are placed beyond the horizon, rather than on-screen.
+    public static let preparedRoundRunway = 16
 
     /// How many distinct rounds are composed before the first sum is shown.
     /// A wrong answer reopens the same round, and the board ends as soon as its
