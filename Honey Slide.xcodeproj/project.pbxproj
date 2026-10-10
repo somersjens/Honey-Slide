@@ -8,6 +8,8 @@
 
 /* Begin PBXFileReference section */
 		F951CADC307A40F800FF04C4 /* Honey Slide.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Honey Slide.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -39,6 +41,20 @@
 			isa = PBXGroup;
 			children = (
 				F951CADC307A40F800FF04C4 /* Honey Slide.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951CB97307A416800FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951CB99307A416800FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -91,6 +107,16 @@
 			preferredProjectObjectVersion = 77;
 			productRefGroup = F951CADD307A40F800FF04C4 /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = F951CB99307A416800FF04C4 /* Products */;
+					ProjectRef = F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */;
+				},
+				{
+					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
+					ProjectRef = F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				F951CADB307A40F800FF04C4 /* Honey Slide */,
