@@ -1,0 +1,33 @@
+{
+  "identifier" : "8E1C2A44-0000-4000-9000-JUMPINGFOX01",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : true,
+      "internalID" : "8E1C2A44-0000-4000-9000-JUMPINGFOX02",
+      "localizations" : [
+        {
+          "description" : "99 levels per topic, your choice of characters, and no ads.",
+          "displayName" : "Jumping Fox Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "premium_unlock_all_flying_penguin",
+      "referenceName" : "Premium - Unlock All Levels and Characters",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}
