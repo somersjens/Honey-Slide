@@ -22,6 +22,7 @@
 		F951D792307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 		F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 		F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -32,7 +33,6 @@
 				Tests/HoneySlideChecks.swift,
 				Tests/README.md,
 				Tools/README.md,
-				"Honey Slide.xcodeproj",
 			);
 			target = F951CADB307A40F800FF04C4 /* Honey Slide */;
 		};
@@ -104,6 +104,8 @@
 				F951D5BD307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
 				F951D792307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
 				F951D748307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */,
+				F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -192,6 +194,13 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		F951E593307BAF0900FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -241,6 +250,10 @@
 			productRefGroup = F951CADD307A40F800FF04C4 /* Products */;
 			projectDirPath = "";
 			projectReferences = (
+				{
+					ProductGroup = F951E593307BAF0900FF04C4 /* Products */;
+					ProjectRef = F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */;
+				},
 				{
 					ProductGroup = F951DE98307BAD2700FF04C4 /* Products */;
 					ProjectRef = F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */;

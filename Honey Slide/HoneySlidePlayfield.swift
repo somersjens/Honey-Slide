@@ -66,8 +66,9 @@ struct HoneySlidePlayfield: View {
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
             .contentShape(Rectangle())
-            .onAppear { simulation.configureViewport(proxy.size) }
-            .onChange(of: proxy.size) { _, size in simulation.configureViewport(size) }
+            .onAppear { simulation.configureViewport(proxy.size, reduceMotion: reduceMotion) }
+            .onChange(of: proxy.size) { _, size in simulation.configureViewport(size, reduceMotion: reduceMotion) }
+            .onChange(of: reduceMotion) { _, reduced in simulation.configureViewport(proxy.size, reduceMotion: reduced) }
 
         }
         .onChange(of: running) { _, _ in lastTick = nil; simulation.release() }
@@ -474,7 +475,7 @@ private struct HoneySlideWorld: View {
     /// Raised, filled waves and rotating eddies share the course projection.
     /// Flow advects through the world independently of the stationary banks.
     private func drawChurningHoney(_ c: inout GraphicsContext, projection: HoneySlideProjection) {
-        let flow = distance * 58
+        let flow = distance * (HoneySlideRules.forwardSpeed / 220) * 58
         let first = Int(floor((simulation.distance + flow) / 155)) - 2
         let last = Int(ceil((simulation.distance + flow + 4200) / 155))
         let cream = Color(red: 1, green: 0.98, blue: 0.78)
@@ -746,10 +747,10 @@ private struct HoneySlideWorld: View {
 private enum HoneyRiderDrawing {
     static func draw(in context: GraphicsContext, size: CGSize, simulation: HoneySlideSimulation, reduceMotion: Bool) {
         guard let bear = context.resolveSymbol(id: "rider") else { return }
-        let width = min(size.width * 0.285, size.height * 0.43)
+        let width = HoneyTubeGeometry.spriteWidth(in: size)
         let player = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
             lateral: simulation.lateral, distance: simulation.elapsed, course: simulation.course)
-        let bob = reduceMotion ? 0 : sin(simulation.elapsed * 6.5) * 4 * min(size.width / 1600, size.height / 900)
+        let bob = HoneyTubeGeometry.bob(in: size, elapsed: simulation.elapsed, reduceMotion: reduceMotion)
         var sprite = context
         sprite.translateBy(x: player.x / 1600 * size.width, y: size.height * 0.735 + bob)
         sprite.rotate(by: .degrees(reduceMotion ? 0 : simulation.tubeHeading))
@@ -773,12 +774,12 @@ private struct HoneyTubeWater: View {
 
     static func draw(in context: GraphicsContext, size: CGSize, simulation: HoneySlideSimulation,
                      foreground: Bool, reduceMotion: Bool) {
-        let spriteWidth = min(size.width * 0.285, size.height * 0.43)
-        let spriteHeight = spriteWidth * 1312 / 1247
+        let spriteWidth = HoneyTubeGeometry.spriteWidth(in: size)
+        let spriteHeight = spriteWidth * HoneyTubeGeometry.imageAspect
         let player = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
             lateral: simulation.lateral, distance: simulation.elapsed, course: simulation.course)
         let angle = reduceMotion ? 0 : simulation.tubeHeading * .pi / 180
-        let bob = reduceMotion ? 0 : sin(simulation.elapsed * 6.5) * 4 * min(size.width / 1600, size.height / 900)
+        let bob = HoneyTubeGeometry.bob(in: size, elapsed: simulation.elapsed, reduceMotion: reduceMotion)
         var c = context
         c.translateBy(x: player.x / 1600 * size.width - sin(angle) * spriteHeight * 0.28,
                       y: size.height * 0.735 + cos(angle) * spriteHeight * 0.28 + bob)

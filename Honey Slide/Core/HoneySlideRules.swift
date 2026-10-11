@@ -5,7 +5,7 @@ import CoreGraphics
 /// preserving option identities understood by the existing scoring engine.
 enum HoneySlideRules {
     /// All moving objects use these world units, including answer rows.
-    static let forwardSpeed = 220.0
+    static let forwardSpeed = 440.0
     static let focalLength = 360.0
     static let playerDepth = 0.84
     static let playerAhead = focalLength * (1 / playerDepth - 1)
@@ -16,16 +16,16 @@ enum HoneySlideRules {
     static let checkpointInterval = 6.6
     static let checkpointSpacing = forwardSpeed * checkpointInterval
     static let firstCheckpointPosition = playerAhead + checkpointSpacing
-    static let straightHalfLength = 350.0
+    static let straightHalfLength = 700.0
     static let collectionDuration = 0.65
     static let tumbleDuration = 0.95
     static let penaltyDuration = 1.15
-    // The same world span defines the visible walls and their physical funnel.
-    static let dividerLead = 210.0
-    static let dividerTail = 60.0
+    // Double the world spans with speed, preserving the time spent in a channel.
+    static let dividerLead = 420.0
+    static let dividerTail = 120.0
     static let dividerHalfWidth = 0.025
     static let dividerHeight = 58.0
-    static let dividerSections = 9
+    static let dividerSections = 18
     // Clip at the camera, after the complete pot and wall have left the view.
     // The former -80 cutoff froze ground projection with props still visible.
     static let nearClipDepth = 12.0
@@ -100,12 +100,12 @@ enum HoneySlideRules {
         return horizonY + groundScale * t + 800 * belowRider * belowRider
     }
 
-    static func groundDepth(screenY: Double) -> Double {
+    static func groundDepth(screenY: Double, height: Double = 0) -> Double {
         let y = max(horizonY + 0.001, screenY)
-        var t = min(1.3, (y - horizonY) / groundScale)
+        var t = min(1.3, (y - horizonY) / (groundScale - height))
         for _ in 0..<6 {
-            let derivative = groundScale + 1600 * max(0, t - playerDepth)
-            t = max(0.001, min(1.3, t - (groundY(depth: t) - y) / derivative))
+            let derivative = groundScale - height + 1600 * max(0, t - playerDepth)
+            t = max(0.001, min(1.3, t - (groundY(depth: t) - height * t - y) / derivative))
         }
         return t
     }
@@ -133,14 +133,10 @@ enum HoneySlideRules {
         return (point.x - center.x) / max(1, width)
     }
 
-    /// Stronger perspective keeps distant rows small, while the contact row
-    /// occupies the three broad lanes without overlapping its neighbours.
+    /// Linear perspective preserves readable distant answers at the larger
+    /// checkpoint spacing, with continuous size and velocity through contact.
     static func answerScale(depth: Double) -> Double {
-        let relative = max(0, depth) / playerDepth
-        // Preserve small distant targets, then continue with a matching slope
-        // through contact. Near pots no longer outgrow their lane separation.
-        return 1.88 * (relative <= 1 ? pow(relative, 1.4)
-                       : relative + 0.4 * (1 - exp(-(relative - 1))))
+        1.88 * max(0, depth) / playerDepth
     }
 
     static func potBounds(depth: Double, lateral: Double, elapsed: Double,

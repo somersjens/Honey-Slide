@@ -23,7 +23,7 @@ Attempted questions remain resumable even when the score is zero.
 ## Course and composition
 
 One monotonic movement clock projects the continuous honey course, answer
-rows, rapids, rail joints, trees, cliffs and waterfalls at 220 units/second.
+rows, rapids, rail joints, trees, cliffs and waterfalls at 440 units/second.
 All checkpoint positions are fixed world positions. The final approach keeps
 the center at x=800 along each checkpoint's straight landing; the outer lanes
 spread through perspective. Elsewhere the foreground retains the actual bend.
@@ -37,7 +37,7 @@ straight. Turns are not forced to alternate left/right. The heading stays within
 Turns change heading continuously; the camera follows that heading instead of
 flattening the foreground or moving sine-wave anchors sideways. Course extension
 retains all previously generated geometry. Pausing keeps the same course.
-Curved sections now span 600–850 world units. A cosine transition spreads the
+Curved sections now span 1,200–1,700 world units. A cosine transition spreads the
 change of heading over the full arc rather than concentrating a short corner.
 The answer approaches and foreground passage remain clear. Road width
 is constant in world coordinates. Direct perspective replaces per-point horizontal
@@ -98,17 +98,26 @@ the same proportions. Double-density cached pot base/crown symbols preserve
 the glossy honey rim, irregular drips, leaves and flowers while the numbers
 and sliding shutter remain dynamic.
 
-Two raised divider walls span 210 world units before each answer row and
-60 units behind it. Their rounded honey-coated leading noses capture the
-nearest lane during the final 0.95-second approach. That channel guides the
-rider to its pot; late taps, dragging and keyboard input cannot cross a wall.
-The lane is picked once, independently of which answer is correct. The next
-answer row remains freely steerable until its own guide entrance.
+Two raised divider walls span 420 world units before each answer row and
+120 units behind it, retaining the earlier time spent alongside the walls at
+440 units/second. Each contains eighteen fixed 30-unit blocks. Their surfaces
+remain interleaved with banks and outside rails in world-depth order.
 
-The dividers always contain nine fixed 30-unit world blocks. Their surfaces are
-interleaved with the banks and outside rails in world-depth order without changing
-their geometry or joints at proximity thresholds. Wall endpoints and pot offsets
-never depend on the selected lane.
+The full inflatable tube oval, including its rotation and bob, is tested against
+the projected sides, noses, tails and raised caps. Collision starts with its
+front and ends when its rear clears the complete obstacle. Answered rows remain
+solid throughout passage. The actual first front contact determines the channel;
+using the sprite-anchor midpoint could otherwise snap a rider across a narrow
+projected nose. The channel is independent of the correct answer.
+
+Steering toward a wall is constrained by the available clearance without
+replacing the player's requested target. Steering away works immediately, and
+the same request resumes once the complete tube clears the wall. Free steering
+is available before and after that overlap. Physics integrates at 120 Hz, even
+for long frames, and resolves the final drawn lean as well as lateral movement.
+Tablet sprite width is capped at 27% rather than 28.5% of the viewport, giving
+the tube room to fit in the middle channel. A lean is reduced if the channel
+cannot contain it. Drawing, collision and water effects share sprite geometry.
 
 ## Verified after this revision
 
@@ -216,6 +225,36 @@ Simulator build passed. Production-renderer previews were inspected on phone
 and tablet for approach, impact, both bend directions, reversal and long straight
 scenes. CPU/offscreen profiling covered twelve scenes at each size; it does not
 measure physical-device FPS.
+
+## Full divider contact and doubled speed — 2026-10-11
+
+The Foundation harness passed with assertions enabled (`-O -assert-config Debug`):
+
+- 440 world units/second and twenty exact contacts at 6.6-second intervals,
+  without accumulated timing drift. Checkpoint spacing is 2,904 units.
+- Full oval clearance sampled across 121 scanlines during approach and passage,
+  including twenty edge-position entries on phone/tablet and all three channels
+  across four viewport sizes with and without Reduce Motion.
+- Answered divider tails remain solid; free movement resumes on the first step
+  after complete clearance. Resize during tail contact also preserves clearance.
+- Drag, tap and held-key requests cannot cross walls. Long-frame contact matches
+  the same interval in ninety fine steps, including the final drawn angle.
+- Existing generated turns, idle travel, outer rails, scoring, fixed sessions,
+  pot passage, collection and projection regressions passed. Maximum projection
+  cache error was 0.04121 logical pixel.
+
+Course leads, bends and reserved straights double with world speed; scenery
+spacing, lane width and perspective remain fixed so optical flow increases.
+Extra honey flow doubles to 116 units/second. Shutters, collection, input response
+and feedback retain their real-time durations. Linear pot scaling preserves
+contact size 1.88 and approximately the previous initial active pot width:
+37.23 logical pixels rather than 16.39 under the old scale at the new distance.
+
+The final Debug iOS Simulator build passed. Production-renderer previews covered
+sixteen scenes at both phone and tablet sizes, including each channel under late
+cross-wall steering and an answered tail. Approach, selected passage, all three
+wall-contact scenes and tail clearance were visually inspected. These are
+CPU/offscreen checks rather than physical-device frame-rate measurements.
 
 ## Verification limits
 

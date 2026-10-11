@@ -111,7 +111,9 @@ private struct BenchmarkScene: View {
         let samples = Int(CommandLine.arguments[2])!
         let bear = NSImage(contentsOfFile: CommandLine.arguments[3])!
         var report: [[String: Any]] = []
-        var scenarios = [("approach", 5.5, true), ("correct", 6.7, true), ("wrong", 6.7, false)]
+        var scenarios = [("approach", 5.5, true), ("correct", 6.7, true), ("wrong", 6.7, false),
+            ("divider-left", 6.2, true), ("divider-middle", 6.2, true),
+            ("divider-right", 6.2, true), ("divider-tail", 6.83, true)]
         for (index, bend) in HoneySlideCourse.preview.bends.prefix(2).enumerated() {
             let time = (bend.start + bend.length * 0.80 - HoneySlideRules.playerAhead) / HoneySlideRules.forwardSpeed
             scenarios.append((bend.direction < 0 ? "bend-left" : "bend-right", time, true))
@@ -147,6 +149,11 @@ private struct BenchmarkScene: View {
                 initial.configureViewport(size)
                 initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
                 while initial.elapsed < time {
+                    if scenario.hasPrefix("divider-") {
+                        let lane = scenario == "divider-left" ? -0.66 : scenario == "divider-right" ? 0.66 : 0
+                        let beginsLateSteering = scenario == "divider-tail" ? 6.65 : 5.9
+                        initial.steer(to: initial.elapsed < beginsLateSteering ? lane : lane > 0 ? -0.78 : 0.78)
+                    }
                     if ["approach", "correct", "wrong"].contains(scenario), let row = initial.activeCheckpoint,
                        let index = row.options.firstIndex(where: { $0.isCorrect == correct }) {
                         initial.steer(to: Double(index - 1) * HoneySlideRules.laneSpacing)

@@ -10,6 +10,8 @@ import CoreGraphics
         checkStraightTravelAndRails()
         checkIdleCheckpoints()
         checkDividerChannels()
+        checkDividerSweeps()
+        checkDoubleSpeedCadence()
         checkProjection()
         checkFixedWidthRails()
         checkAnswerLayout()
@@ -18,7 +20,7 @@ import CoreGraphics
         checkCollectionMotion()
         checkStraightLandings()
         checkCachedProjection()
-        print("PASS: rounded, irregular course shapes, straight unattended travel, rail release at opposite turns and fixed-width verges, consistent slow-frame physics, continuous camera passage, straight checkpoint landings with stable dividers, pot impacts and Honey collection, fixed-question sessions and ±1 scoring, ten-minute projection and undistorted pot proportions")
+        print("PASS: full-tube divider clearance through answered tails, immediate freedom before/after walls, 440 units/s with 6.6-second cadence, rounded, irregular course shapes, straight unattended travel, rail release at opposite turns and fixed-width verges, consistent slow-frame physics, continuous camera passage, straight checkpoint landings with stable dividers, pot impacts and Honey collection, fixed-question sessions and ±1 scoring, ten-minute projection and undistorted pot proportions")
     }
 
     private static func checkCollectionMotion() {
@@ -326,7 +328,7 @@ import CoreGraphics
                     sawContinuingTurn = true
                 }
                 if bend.direction == 0 { sawStraight = true }
-                assert(bend.length >= 600 && bend.length <= 850)
+                assert(bend.length >= 1200 && bend.length <= 1700)
                 let angle = abs(atan(bend.endSlope) - atan(bend.startSlope)) * 180 / .pi
                 angles.insert(Int(angle))
                 assert(angle <= 75.000001 && abs(atan(bend.endSlope)) <= 55.000001 * .pi / 180)
@@ -477,7 +479,7 @@ import CoreGraphics
         for size in [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834)] {
             var ride = HoneySlideSimulation(courseSeed: 42)
             ride.configureViewport(size)
-            let spriteWidth = min(size.width * 0.285, size.height * 0.43) / size.width * 1600
+            let spriteWidth = HoneyTubeGeometry.spriteWidth(in: size) / size.width * 1600
             let contact = ride.railLimit * HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth)
             let rail = HoneySlideRules.trackHalfWidth(depth: HoneySlideRules.playerDepth)
             assert(abs(rail - contact - spriteWidth * 0.46 - HoneySlideRules.railClearance) < 0.000001)
@@ -574,44 +576,48 @@ import CoreGraphics
     private static func checkDividerChannels() {
         let engine = MemoryGame(level: MathLevel(topic: .addition, index: 1), mode: .order, seed: 9)
         assert(engine.start()); assert(engine.turnCardsOver()); assert(engine.beginAnswering())
-        for start in [-0.66, -0.40, -0.331, -0.32, -0.06, 0.06, 0.32, 0.331, 0.40, 0.66] {
-            var ride = HoneySlideSimulation(courseSeed: 42)
-            ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
-            let row = ride.activeCheckpoint!
-            ride.steer(to: start)
-            let entersAt = (row.worldPosition - HoneySlideRules.playerAhead - HoneySlideRules.dividerLead)
-                / HoneySlideRules.forwardSpeed
-            while ride.elapsed + 1.0 / 120 < entersAt {
-                ride.advance(seconds: 1.0 / 120)
+        for size in [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834)] {
+            for start in [-0.66, -0.40, -0.331, -0.32, -0.06, 0.06, 0.32, 0.331, 0.40, 0.66] {
+                var ride = HoneySlideSimulation(courseSeed: 42)
+                ride.configureViewport(size)
+                ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+                let row = ride.activeCheckpoint!
+                ride.steer(to: start)
+                while ride.activeCheckpoint!.guidedLane == nil {
+                    let before = ride.lateral
+                    ride.advance(seconds: 1.0 / 120)
+                    assert(abs(ride.lateral - before) < 0.065, "Tube jumped at divider entrance: \(ride.lateral - before), start \(start), size \(size), time \(ride.elapsed)")
+                }
+                let nearest = ride.activeCheckpoint!.guidedLane!
+                assert((0..<3).contains(nearest))
+                assert(ride.distance + HoneySlideRules.playerAhead < row.worldPosition - HoneySlideRules.dividerLead,
+                    "Capture must include the front of the tube")
+                while ride.crossing(roundID: row.roundID!) == nil {
+                    // A late tap, drag, or held key cannot cut across a wall.
+                    ride.steer(to: nearest == 2 ? -0.78 : 0.78)
+                    ride.press(nearest == 2 ? -1 : 1)
+                    ride.advance(seconds: 1.0 / 60)
+                    assert(ride.activeCheckpoint!.guidedLane == nearest)
+                    assert(HoneySlideRules.collisionIndex(lateral: ride.lateral) == nearest)
+                    assertTubeClear(ride, row: row)
+                }
+                let hit = ride.crossing(roundID: row.roundID!)!
+                assert(hit.index == nearest && hit.option == row.options[nearest])
+                ride.markSelected(checkpointID: row.id, index: hit.index, correct: hit.option.isCorrect)
                 assert(ride.activeCheckpoint!.guidedLane == nil)
+                ride.release()
+                let requested = nearest == 2 ? -0.66 : 0.66
+                ride.steer(to: requested)
+                // The answered row remains a physical obstacle, including its tail.
+                for _ in 0..<24 {
+                    ride.advance(seconds: 1.0 / 120)
+                    assert(HoneySlideRules.collisionIndex(lateral: ride.lateral) == nearest)
+                    assertTubeClear(ride, row: row)
+                    assert(ride.targetLateral == requested, "Wall replaced the player's steering request")
+                }
+                for _ in 0..<156 { ride.advance(seconds: 1.0 / 120) }
+                assert(abs(ride.lateral - requested) < 0.03, "Steering did not resume beyond the wall")
             }
-            let nearest = HoneySlideRules.collisionIndex(lateral: ride.lateral)
-            let expected = (0..<3).min { abs(ride.lateral - Double($0 - 1) * 0.66)
-                < abs(ride.lateral - Double($1 - 1) * 0.66) }!
-            assert(nearest == expected)
-            let before = ride.lateral
-            ride.advance(seconds: entersAt - ride.elapsed + 0.001)
-            assert(ride.activeCheckpoint!.guidedLane == nearest)
-            assert(abs(ride.lateral - before) < 0.02) // no snap at the noses
-            let center = Double(nearest - 1) * 0.66
-            while ride.crossing(roundID: row.roundID!) == nil {
-                // A late tap, drag, or held key cannot cut across a wall.
-                ride.steer(to: nearest == 2 ? -0.78 : 0.78)
-                ride.press(nearest == 2 ? -1 : 1)
-                ride.advance(seconds: 1.0 / 60)
-                assert(ride.activeCheckpoint!.guidedLane == nearest)
-                assert(HoneySlideRules.collisionIndex(lateral: ride.lateral) == nearest)
-                assert(ride.targetLateral == center)
-            }
-            let hit = ride.crossing(roundID: row.roundID!)!
-            assert(hit.index == nearest && hit.option == row.options[nearest])
-            assert(abs(ride.lateral - center) < 0.03)
-            ride.markSelected(checkpointID: row.id, index: hit.index, correct: hit.option.isCorrect)
-            assert(ride.activeCheckpoint!.guidedLane == nil)
-            ride.release()
-            ride.steer(to: nearest == 2 ? -0.66 : 0.66)
-            for _ in 0..<80 { ride.advance(seconds: 1.0 / 120) }
-            assert(abs(ride.lateral - ride.targetLateral) < 0.03)
         }
         // Phone and tablet canvases have different aspect ratios, but both
         // dimensions of every upright pot must use the same physical scale.
@@ -622,6 +628,133 @@ import CoreGraphics
             let renderedRatio = (130 * sx) / (116 * sy * correction)
             assert(abs(renderedRatio - 130.0 / 116) < 0.000001)
         }
+    }
+
+    /// Independently sample the complete rendered oval against every wall face.
+    /// This catches extrema missed by the contact solver, and checks selected rows.
+    private static func assertTubeClear(_ ride: HoneySlideSimulation, row: HoneyCheckpoint) {
+        let footprint = ride.tubeFootprint
+        let playerX = HoneySlideRules.trackPoint(depth: HoneySlideRules.playerDepth, offset: 0,
+            distance: ride.elapsed, course: ride.course).x
+        let far = row.worldPosition + HoneySlideRules.dividerTail - ride.distance
+        guard far > HoneySlideRules.nearClipAhead else { return }
+        let tf = HoneySlideRules.depth(ahead: far)
+        let tn = HoneySlideRules.depth(ahead: row.worldPosition - HoneySlideRules.dividerLead - ride.distance)
+        let top = HoneySlideRules.groundY(depth: tf) - HoneySlideRules.dividerHeight * tf
+        let bottom = HoneySlideRules.groundY(depth: tn)
+        let lane = ride.checkpoints.first { $0.id == row.id }!.guidedLane ?? HoneySlideRules.collisionIndex(lateral: ride.lateral)
+        for sample in 0...120 {
+            let y = footprint.minY + (footprint.maxY - footprint.minY) * Double(sample) / 120
+            guard y > top && y < bottom else { continue }
+            let depths = [max(tf, HoneySlideRules.groundDepth(screenY: y)),
+                min(tn, HoneySlideRules.groundDepth(screenY: y, height: HoneySlideRules.dividerHeight))]
+            let tube = footprint.slice(at: y)
+            let tubeLeft = playerX + ride.lateral * 740 + tube.lowerBound
+            let tubeRight = playerX + ride.lateral * 740 + tube.upperBound
+            for boundary in [-0.33, 0.33] {
+                let edges = depths.flatMap { depth in
+                    [boundary - 0.03, boundary + 0.03].map {
+                        HoneySlideRules.ridingPoint(depth: depth, lateral: $0,
+                            distance: ride.elapsed, course: ride.course).x
+                    }
+                }
+                if (boundary < 0 && lane == 0) || (boundary > 0 && lane < 2) {
+                    assert(tubeRight <= edges.min()! + 0.01, "Right tube edge intersects divider: \(tubeRight - edges.min()!) at y \(y), time \(ride.elapsed), lane \(lane), lateral \(ride.lateral), heading \(ride.tubeHeading), bounds \(String(describing: HoneyDividerContact.forbiddenLateral(rowPosition: row.worldPosition, boundary: boundary, distance: ride.distance, footprint: footprint, course: ride.course)))")
+                } else {
+                    assert(tubeLeft >= edges.max()! - 0.01, "Left tube edge intersects divider: \(edges.max()! - tubeLeft), time \(ride.elapsed), lane \(lane)")
+                }
+            }
+        }
+    }
+
+    private static func checkDividerSweeps() {
+        let engine = MemoryGame(level: MathLevel(topic: .addition, index: 1), seed: 9)
+        assert(engine.start()); assert(engine.turnCardsOver()); assert(engine.beginAnswering())
+        for reduced in [false, true] {
+            for size in [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834),
+                         CGSize(width: 1600, height: 900), CGSize(width: 932, height: 430)] {
+                for lane in 0..<3 {
+                    var ride = HoneySlideSimulation(courseSeed: 42)
+                    ride.configureViewport(size, reduceMotion: reduced)
+                    ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+                    let row = ride.activeCheckpoint!
+                    ride.steer(to: Double(lane - 1) * 0.66)
+                    // Before physical contact all three lanes remain available.
+                    ride.advance(seconds: 4.6)
+                    assert(ride.activeCheckpoint!.guidedLane == nil)
+                    ride.steer(to: Double(1 - lane) * 0.66)
+                    ride.advance(seconds: 0.5)
+                    assert(ride.activeCheckpoint!.guidedLane == nil)
+                    assert(abs(ride.lateral - Double(1 - lane) * 0.66) < 0.09)
+                    ride.steer(to: Double(lane - 1) * 0.66)
+                    while ride.activeCheckpoint!.guidedLane == nil { ride.advance(seconds: 1.0 / 120) }
+                    let captured = ride.activeCheckpoint!.guidedLane!
+                    let opposite = captured == 2 ? -0.66 : 0.66
+                    // A single long frame must agree with the fine integration.
+                    var fast = ride, slow = ride
+                    fast.steer(to: opposite); slow.steer(to: opposite)
+                    slow.advance(seconds: 0.75)
+                    for _ in 0..<90 { fast.advance(seconds: 1.0 / 120); assertTubeClear(fast, row: row) }
+                    assert(abs(fast.lateral - slow.lateral) < 0.000001)
+                    assert(abs(fast.tubeHeading - slow.tubeHeading) < 0.000001)
+                    ride = fast
+                    while ride.crossing(roundID: row.roundID!) == nil {
+                        ride.advance(seconds: 1.0 / 120)
+                        assertTubeClear(ride, row: row)
+                    }
+                    let hit = ride.crossing(roundID: row.roundID!)!
+                    ride.markSelected(checkpointID: row.id, index: hit.index, correct: hit.option.isCorrect)
+                    // Resize while still alongside an answered divider.
+                    ride.configureViewport(size.width == 1194 ? CGSize(width: 852, height: 393) : CGSize(width: 1194, height: 834), reduceMotion: reduced)
+                    assertTubeClear(ride, row: row)
+                    var tailFrames = 0
+                    while HoneyDividerContact.forbiddenLateral(rowPosition: row.worldPosition, boundary: 0.33,
+                        distance: ride.distance, footprint: ride.tubeFootprint, course: ride.course) != nil {
+                        ride.advance(seconds: 1.0 / 120)
+                        assertTubeClear(ride, row: row)
+                        tailFrames += 1
+                        assert(tailFrames < 120)
+                    }
+                    assert(tailFrames > 24, "Wall released while the rear of the tube was still alongside it")
+                    let before = ride.lateral
+                    ride.advance(seconds: 1.0 / 120)
+                    assert((ride.lateral - before) * (opposite - before) > 0,
+                        "Tube remained locked after clearing the wall")
+                    ride.advance(seconds: 0.75)
+                    assert(abs(ride.lateral - opposite) < 0.03)
+                }
+            }
+        }
+    }
+
+    private static func checkDoubleSpeedCadence() {
+        let engine = MemoryGame(level: MathLevel(topic: .addition, index: 1), seed: 7)
+        assert(engine.start()); assert(engine.turnCardsOver()); assert(engine.beginAnswering())
+        var ride = HoneySlideSimulation(courseSeed: 42)
+        ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+        for question in 1...20 {
+            let row = ride.activeCheckpoint!
+            let index = row.options.firstIndex(where: \.isCorrect)!
+            ride.steer(to: Double(index - 1) * 0.66)
+            let toContact = (row.worldPosition - ride.distance - HoneySlideRules.playerAhead) / 440
+            let before = ride.distance
+            ride.advance(seconds: toContact)
+            assert(abs(ride.distance - before - 440 * toContact) < 0.000001)
+            assert(abs(ride.elapsed - Double(question) * 6.6) < 0.000001)
+            let hit = ride.crossing(roundID: engine.round!.id)!
+            ride.markSelected(checkpointID: row.id, index: hit.index, correct: hit.option.isCorrect)
+            assert(engine.select(optionID: hit.option.id) != .ignored)
+            assert(engine.finishResolving()); engine.advance()
+            if question < 20 {
+                assert(engine.turnCardsOver()); assert(engine.beginAnswering())
+                ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+            }
+        }
+        let initialDepth = HoneySlideRules.depth(ahead: HoneySlideRules.firstCheckpointPosition)
+        let initialWidth = 154 * HoneySlideRules.answerScale(depth: initialDepth)
+        assert(initialWidth >= 36 && initialWidth <= 39, "Distant active answers became unreadably small")
+        assert(HoneySlideRules.shutterDuration == 0.42 && HoneySlideRules.collectionDuration == 0.65)
+        print("Speed/cadence: 440 units/s, 20 contacts at 6.6 s intervals; initial pot width \(initialWidth)")
     }
 
     private static func checkProjection() {
