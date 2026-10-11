@@ -76,8 +76,7 @@ Build the main application:
 xcodebuild -project '../Honey Slide.xcodeproj' -scheme 'Honey Slide' -destination 'generic/platform=iOS Simulator' -configuration Debug -derivedDataPath /tmp/honey-slide-debug-final CODE_SIGNING_ALLOWED=NO build
 ```
 
-The synchronized source group excludes the archived `space-lion` copy, its
-asset catalog, and this standalone test harness. The application supports
+The archived `honey-slide` copy sits beside the app sources, outside the synchronized group. That group excludes this standalone test harness. The application supports
 landscape iPhone/iPad on iOS 17 or later.
 
 The projection-cache regression check compares 1.3 million coordinates across

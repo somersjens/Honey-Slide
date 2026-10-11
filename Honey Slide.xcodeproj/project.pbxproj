@@ -8,18 +8,20 @@
 
 /* Begin PBXFileReference section */
 		F951CADC307A40F800FF04C4 /* Honey Slide.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Honey Slide.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951CD51307A423F00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951CD95307A423F00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D2C4307A45DC00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D30C307A45DC00FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D42C307A6B5600FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D475307A6B5600FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D5BD307AC6A200FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D607307AC6A200FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D748307ACE9100FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
-		F951D792307ACE9100FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951CB4D307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951CB91307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951CD51307A423F00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951CD95307A423F00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D2C4307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D30C307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D42C307A6B5600FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D475307A6B5600FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D5BD307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D607307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D748307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951D792307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide/Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -27,86 +29,10 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				README.md,
-				"space-lion/AppAudio.swift",
-				"space-lion/AppSettings.swift",
-				"space-lion/Assets.xcassets",
-				"space-lion/background_music.mp3",
-				"space-lion/Core/CharacterUnlocks.swift",
-				"space-lion/Core/DecimalAnswer.swift",
-				"space-lion/Core/GameConfig.swift",
-				"space-lion/Core/MathQuestion.swift",
-				"space-lion/Core/MathTopic.swift",
-				"space-lion/Core/MemoryGame.swift",
-				"space-lion/Core/PausedSessionStore.swift",
-				"space-lion/Core/PracticeMode.swift",
-				"space-lion/Core/ProgressStore.swift",
-				"space-lion/Core/QuestionGenerator.swift",
-				"space-lion/Core/RoundFactory.swift",
-				"space-lion/Core/SeededGenerator.swift",
-				"space-lion/ElephantChallengeApp.swift",
-				"space-lion/EmphasizedText.swift",
-				"space-lion/FlyingPenguinPlayfield.swift",
-				"space-lion/GameView.swift",
-				"space-lion/GameViewModel.swift",
-				"space-lion/HomeComponents.swift",
-				"space-lion/HomeView.swift",
-				"space-lion/LevelIntroCard.swift",
-				"space-lion/Localizable.xcstrings",
-				"space-lion/Localization.swift",
-				"space-lion/MenuPolarBackground.swift",
-				"space-lion/Notifications.swift",
-				"space-lion/OnboardingView.swift",
-				"space-lion/ParentApprovalGate.swift",
-				"space-lion/PlaytimeTracker.swift",
-				"space-lion/PolarScenery.swift",
-				"space-lion/PremiumStore.swift",
-				"space-lion/PremiumView.swift",
-				"space-lion/Products.storekit",
-				"space-lion/ProgressSync.swift",
-				"space-lion/Promo/PromoStillCompositionView.swift",
-				"space-lion/Promo/TrailerCompositionView.swift",
-				"space-lion/PromotedPurchaseCoordinator.swift",
-				"space-lion/README.md",
-				"space-lion/ResultView.swift",
-				"space-lion/ReviewRequestCoordinator.swift",
-				"space-lion/SceneryAir.swift",
-				"space-lion/SceneryFloaters.swift",
-				"space-lion/SceneryHorizon.swift",
-				"space-lion/SceneryTheme.swift",
-				"space-lion/score_increase_main.caf",
-				"space-lion/ScreenSafeArea.swift",
-				"space-lion/SettingsView.swift",
-				"space-lion/sfx_button_press.caf",
-				"space-lion/sfx_cannon_shoot.m4a",
-				"space-lion/sfx_card_count.caf",
-				"space-lion/sfx_card_flight.caf",
-				"space-lion/sfx_card_reveal.caf",
-				"space-lion/sfx_character_unlock.caf",
-				"space-lion/sfx_double_card.caf",
-				"space-lion/sfx_double_score.caf",
-				"space-lion/sfx_end_screen_celebration.m4a",
-				"space-lion/sfx_fire_crackle.m4a",
-				"space-lion/sfx_good.m4a",
-				"space-lion/sfx_high_score.caf",
-				"space-lion/sfx_level_complete.caf",
-				"space-lion/sfx_life_pickup.m4a",
-				"space-lion/sfx_select.caf",
-				"space-lion/sfx_session_start.caf",
-				"space-lion/sfx_switch_off.caf",
-				"space-lion/sfx_switch_on.caf",
-				"space-lion/sfx_turbo.m4a",
-				"space-lion/sfx_wrong.m4a",
-				"space-lion/splash.caf",
-				"space-lion/Theme.swift",
-				"space-lion/Tools/Hungry_Frog_vertaalsheet_07082026.csv",
-				"space-lion/Tools/Hungry_Frog_vertaalsheet_07082026.gecorrigeerd.csv",
-				"space-lion/Tools/README.md",
-				"space-lion/Tools/translations.py",
-				"space-lion/Translations.csv",
-				"space-lion/Tutorial.swift",
 				Tests/HoneySlideChecks.swift,
 				Tests/README.md,
 				Tools/README.md,
+				"Honey Slide.xcodeproj",
 			);
 			target = F951CADB307A40F800FF04C4 /* Honey Slide */;
 		};
@@ -166,16 +92,18 @@
 		F951CCEF307A423F00FF04C4 /* Recovered References */ = {
 			isa = PBXGroup;
 			children = (
-				F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */,
-				F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */,
-				F951CD51307A423F00FF04C4 /* Space Lion.xcodeproj */,
-				F951CD95307A423F00FF04C4 /* Space Lion.xcodeproj */,
-				F951D30C307A45DC00FF04C4 /* Space Lion.xcodeproj */,
-				F951D2C4307A45DC00FF04C4 /* Space Lion.xcodeproj */,
-				F951D475307A6B5600FF04C4 /* Space Lion.xcodeproj */,
-				F951D42C307A6B5600FF04C4 /* Space Lion.xcodeproj */,
-				F951D607307AC6A200FF04C4 /* Space Lion.xcodeproj */,
-				F951D5BD307AC6A200FF04C4 /* Space Lion.xcodeproj */,
+				F951CB91307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951CB4D307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951CD51307A423F00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951CD95307A423F00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D30C307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D2C4307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D475307A6B5600FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D42C307A6B5600FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D607307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D5BD307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D792307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
+				F951D748307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -250,6 +178,20 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		F951DE98307BAD2700FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951DE9C307BAD2700FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -300,52 +242,60 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
+					ProductGroup = F951DE98307BAD2700FF04C4 /* Products */;
+					ProjectRef = F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */;
+				},
+				{
+					ProductGroup = F951DE9C307BAD2700FF04C4 /* Products */;
+					ProjectRef = F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */;
+				},
+				{
 					ProductGroup = F951CB99307A416800FF04C4 /* Products */;
-					ProjectRef = F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951CB91307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D79A307ACE9100FF04C4 /* Products */;
-					ProjectRef = F951D792307ACE9100FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D792307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D60D307AC6A200FF04C4 /* Products */;
-					ProjectRef = F951D607307AC6A200FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D607307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951CD9D307A423F00FF04C4 /* Products */;
-					ProjectRef = F951CD95307A423F00FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951CD95307A423F00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D47D307A6B5600FF04C4 /* Products */;
-					ProjectRef = F951D42C307A6B5600FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D42C307A6B5600FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D312307A45DC00FF04C4 /* Products */;
-					ProjectRef = F951D30C307A45DC00FF04C4 /* Space Lion.xcodeproj */;
-				},
-				{
-					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
-					ProjectRef = F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D30C307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D314307A45DC00FF04C4 /* Products */;
-					ProjectRef = F951D2C4307A45DC00FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D2C4307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D798307ACE9100FF04C4 /* Products */;
-					ProjectRef = F951D748307ACE9100FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D748307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
+				},
+				{
+					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
+					ProjectRef = F951CB4D307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D47B307A6B5600FF04C4 /* Products */;
-					ProjectRef = F951D475307A6B5600FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D475307A6B5600FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951CD9B307A423F00FF04C4 /* Products */;
-					ProjectRef = F951CD51307A423F00FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951CD51307A423F00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D60F307AC6A200FF04C4 /* Products */;
-					ProjectRef = F951D5BD307AC6A200FF04C4 /* Space Lion.xcodeproj */;
+					ProjectRef = F951D5BD307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 			);
 			projectRoot = "";

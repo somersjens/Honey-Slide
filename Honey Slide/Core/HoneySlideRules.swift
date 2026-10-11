@@ -38,7 +38,10 @@ enum HoneySlideRules {
     // viewing distance made the verges bulge and pinch as corners approached.
     static let trackWorldHalfWidth = 800.0
     static let projectionScale = 1.2
-    static let groundScale = 780 * pow(playerDepth, 0.2)
+    /// Lift the distant course under the question sign while preserving the
+    /// rider's waterline and the exact projection used by touch and collisions.
+    static let horizonY = 108.0
+    static let groundScale = 780 * pow(playerDepth, 0.2) + (155 - horizonY) / playerDepth
     static func trackHalfWidth(depth: Double) -> Double {
         trackWorldHalfWidth * max(0, depth) * projectionScale
     }
@@ -94,12 +97,12 @@ enum HoneySlideRules {
         let t = max(0, depth), belowRider = max(0, t - playerDepth)
         // A flat straight has straight projected verges. Only the ground below
         // the rider opens out to carry passed objects out of the viewport.
-        return 155 + groundScale * t + 800 * belowRider * belowRider
+        return horizonY + groundScale * t + 800 * belowRider * belowRider
     }
 
     static func groundDepth(screenY: Double) -> Double {
-        let y = max(155.001, screenY)
-        var t = min(1.3, (y - 155) / groundScale)
+        let y = max(horizonY + 0.001, screenY)
+        var t = min(1.3, (y - horizonY) / groundScale)
         for _ in 0..<6 {
             let derivative = groundScale + 1600 * max(0, t - playerDepth)
             t = max(0.001, min(1.3, t - (groundY(depth: t) - y) / derivative))
@@ -121,7 +124,7 @@ enum HoneySlideRules {
     /// Invert the same projection used to place barrels. A tap on a far lane
     /// selects that lane, rather than a screen-x position close to the centre.
     static func steeringTarget(at point: CGPoint, elapsed: Double, course: HoneySlideCourse = .preview) -> Double? {
-        guard point.y >= 155 else { return nil }
+        guard point.y >= horizonY else { return nil }
         let depth = groundDepth(screenY: point.y)
         let center = trackPoint(depth: depth, offset: 0, distance: elapsed, course: course)
         let edge = trackPoint(depth: depth, offset: 1, distance: elapsed, course: course)

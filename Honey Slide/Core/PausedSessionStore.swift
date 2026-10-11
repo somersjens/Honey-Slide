@@ -43,7 +43,7 @@ public struct PausedSession: Codable, Equatable, Sendable {
     public let isHeartFishAvailable: Bool?
     /// Optional so older stored runs resume without a remembered mistake.
     public let lastMissedChallenge: String?
-    /// Optional for compatibility with runs saved before Space Lion's clock.
+    /// Optional for compatibility with runs saved before Honey Slide's clock.
     public let timeRemainingSeconds: Int?
     /// Pace colours already earned in this run. Optional so sessions created
     /// before the ten-dot HUD remain resumable.

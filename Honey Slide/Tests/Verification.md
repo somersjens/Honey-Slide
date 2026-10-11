@@ -72,8 +72,8 @@ viewport sizes; every passed pot is out of view within one second.
 Contact pot scale remains 1.88, with a riding width of 740 units and positive
 gaps between all three choices. Both banks have a continuous forest floor,
 projected verges, rooted trees and flower bushes. Rails rise 84 logical units,
-with honey tongues, spills and droplets. The supplied `1_bear` image rides in
-the foreground. Pause, equation sign and score share a 120-unit HUD height;
+with projected top surfaces, amber lips and small clinging drips. The supplied
+`1_bear` image rides in the foreground. Pause, equation sign and score share a 120-unit HUD height;
 all three panels share cream, honey and wood colors. No question ordinal,
 countdown or lower-corner arrows appear in the active HUD. Wrong-answer
 feedback and the pause card show only the solved question, without a point
@@ -106,8 +106,9 @@ The lane is picked once, independently of which answer is correct. The next
 answer row remains freely steerable until its own guide entrance.
 
 The dividers always contain nine fixed 30-unit world blocks. Their surfaces are
-batched for rendering without changing their geometry or joints at proximity
-thresholds. Wall endpoints and pot offsets never depend on the selected lane.
+interleaved with the banks and outside rails in world-depth order without changing
+their geometry or joints at proximity thresholds. Wall endpoints and pot offsets
+never depend on the selected lane.
 
 ## Verified after this revision
 
@@ -190,6 +191,31 @@ all three HUD panels match, pot proportions are preserved, and the raised
 walls flank the rider. Continuing through the selected center channel scored
 the correct answer and advanced the score from 5 to 6. The pause card retained
 only the previously solved question, without a penalty prefix.
+
+## Bank and rail revision — 2026-10-11
+
+Trees, flower gardens, sandstone outcrops, outside rail blocks, divider blocks
+and answer pots now share a far-to-near world-depth draw order. Nearby canopies
+can cover a distant bend; nearby walls still cover plants behind them. The honey
+surface stays continuous underneath. New cached forest artwork adds branching
+trunks, layered leafy canopies, ferns, daisies, moss and occasional stepped rock
+formations. Broad honey falls are integrated into the outcrops; the former
+isolated cylindrical honey props are removed.
+
+Outside rails now have projected inner/outer faces, a top surface, stable
+72-unit joints, subtle wood grain and restrained honey drips. The nine fixed
+30-unit divider blocks use the same palette and shading, with rounded coated
+noses. Collision geometry and checkpoint positions are unchanged.
+
+The horizon is raised from y=155 to y=108. Compensating the ground slope keeps
+the rider waterline fixed, and inverse touch projection uses the same horizon.
+The Foundation harness passed, including ten-minute projection, straight rails,
+touch inversion, divider capture, camera passage and collection motion. The
+projection cache's maximum error was 0.0952 logical pixel. The full Debug iOS
+Simulator build passed. Production-renderer previews were inspected on phone
+and tablet for approach, impact, both bend directions, reversal and long straight
+scenes. CPU/offscreen profiling covered twelve scenes at each size; it does not
+measure physical-device FPS.
 
 ## Verification limits
 

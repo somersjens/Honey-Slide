@@ -123,10 +123,10 @@ private struct SpaceAnswerBurstState: Identifiable {
     let isCorrect: Bool
 }
 
-/// Space Lion's complete in-game surface. It deliberately keeps the same
+/// Honey Slide's complete in-game surface. It deliberately keeps the same
 /// boundary as the Flying Penguin field so the surrounding start, pause,
 /// result, score and navigation flows remain untouched.
-struct SpaceLionPlayfield: View {
+struct HoneySlideCockpit: View {
     let rounds: [GameRound]
     let character: AnimalCharacter
     let isPad: Bool
@@ -335,7 +335,7 @@ struct SpaceLionPlayfield: View {
         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: [])
         .accessibilityLabel(Text(verbatim: option.text))
         .accessibilityHint(Text(verbatim: "Answer \(index + 1)"))
-        .accessibilityIdentifier("space-lion-answer-\(option.text)")
+        .accessibilityIdentifier("honey-slide-answer-\(option.text)")
         .transition(.opacity.combined(with: .scale(scale: 0.88)))
     }
 
@@ -890,7 +890,7 @@ struct SpaceLionPlayfield: View {
     }
 }
 
-extension SpaceLionPlayfield {
+extension HoneySlideCockpit {
     struct Metrics {
         let size: CGSize
         let topReserve: CGFloat

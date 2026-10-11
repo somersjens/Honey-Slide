@@ -80,15 +80,15 @@
 		F94005543074D18500BC6413 /* SeededGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94004CC3074D18500BC6413 /* SeededGenerator.swift */; };
 		F94005553074D18500BC6413 /* SceneryAir.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94004E93074D18500BC6413 /* SceneryAir.swift */; };
 		F94005563074D18500BC6413 /* Notifications.swift in Sources */ = {isa = PBXBuildFile; fileRef = F94004D93074D18500BC6413 /* Notifications.swift */; };
-		F94005573074D18500BC6413 /* SpaceLionPlayfield.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000013074D18500BC6413 /* SpaceLionPlayfield.swift */; };
+		F94005573074D18500BC6413 /* HoneySlideCockpit.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000013074D18500BC6413 /* HoneySlideCockpit.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
  AA0000043074D18500BC6413 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoneySlideRules.swift; sourceTree = "<group>"; };
  AA0000023074D18500BC6413 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoneySlidePlayfield.swift; sourceTree = "<group>"; };
-		A10000013074D18500BC6413 /* SpaceLionPlayfield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpaceLionPlayfield.swift; sourceTree = "<group>"; };
+		A10000013074D18500BC6413 /* HoneySlideCockpit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoneySlideCockpit.swift; sourceTree = "<group>"; };
 		A1B2C3D43074D18500BC6413 /* sfx_button_press.caf */ = {isa = PBXFileReference; lastKnownFileType = file; path = sfx_button_press.caf; sourceTree = "<group>"; };
-		F94004AD3074D11400BC6413 /* Space Lion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Space Lion.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F94004AD3074D11400BC6413 /* Honey Slide.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Honey Slide.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		F94004BD3074D18500BC6413 /* AppAudio.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAudio.swift; sourceTree = "<group>"; };
 		F94004BE3074D18500BC6413 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
 		F94004BF3074D18500BC6413 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -189,7 +189,7 @@
 				F94004CE3074D18500BC6413 /* ElephantChallengeApp.swift */,
 				F94004CF3074D18500BC6413 /* EmphasizedText.swift */,
 				F94004D03074D18500BC6413 /* FlyingPenguinPlayfield.swift */,
-				A10000013074D18500BC6413 /* SpaceLionPlayfield.swift */,
+				A10000013074D18500BC6413 /* HoneySlideCockpit.swift */,
 				F94004D13074D18500BC6413 /* GameView.swift */,
  AA0000023074D18500BC6413,
 				F94004D23074D18500BC6413 /* GameViewModel.swift */,
@@ -252,7 +252,7 @@
 		F94004AE3074D11400BC6413 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				F94004AD3074D11400BC6413 /* Space Lion.app */,
+				F94004AD3074D11400BC6413 /* Honey Slide.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -302,9 +302,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F94004AC3074D11400BC6413 /* Space Lion */ = {
+		F94004AC3074D11400BC6413 /* Honey Slide Project */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = F94004BA3074D11500BC6413 /* Build configuration list for PBXNativeTarget "Space Lion" */;
+			buildConfigurationList = F94004BA3074D11500BC6413 /* Build configuration list for PBXNativeTarget "Honey Slide Project" */;
 			buildPhases = (
 				F94004A93074D11400BC6413 /* Sources */,
 				F94004AA3074D11400BC6413 /* Frameworks */,
@@ -312,9 +312,9 @@
 			);
 			buildRules = (
 			);
-			name = "Space Lion";
-			productName = "Space Lion";
-			productReference = F94004AD3074D11400BC6413 /* Space Lion.app */;
+			name = "Honey Slide Project";
+			productName = "Honey Slide";
+			productReference = F94004AD3074D11400BC6413 /* Honey Slide.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -332,7 +332,7 @@
 					};
 				};
 			};
-			buildConfigurationList = F94004A83074D11400BC6413 /* Build configuration list for PBXProject "Space Lion" */;
+			buildConfigurationList = F94004A83074D11400BC6413 /* Build configuration list for PBXProject "Honey Slide" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -346,7 +346,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				F94004AC3074D11400BC6413 /* Space Lion */,
+				F94004AC3074D11400BC6413 /* Honey Slide */,
 			);
 		};
 /* End PBXProject section */
@@ -428,7 +428,7 @@
 				F940054E3074D18500BC6413 /* CharacterUnlocks.swift in Sources */,
 				F940054F3074D18500BC6413 /* ElephantChallengeApp.swift in Sources */,
 				F94005503074D18500BC6413 /* FlyingPenguinPlayfield.swift in Sources */,
-				F94005573074D18500BC6413 /* SpaceLionPlayfield.swift in Sources */,
+				F94005573074D18500BC6413 /* HoneySlideCockpit.swift in Sources */,
 				F94005513074D18500BC6413 /* PlaytimeTracker.swift in Sources */,
 				F94005523074D18500BC6413 /* GameView.swift in Sources */,
  AA0000013074D18500BC6413,
@@ -442,7 +442,7 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		F94004B83074D11500BC6413 /* Debug configuration for PBXProject "Space Lion" */ = {
+		F94004B83074D11500BC6413 /* Debug configuration for PBXProject "Honey Slide" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -504,7 +504,7 @@
 			};
 			name = Debug;
 		};
-		F94004B93074D11500BC6413 /* Release configuration for PBXProject "Space Lion" */ = {
+		F94004B93074D11500BC6413 /* Release configuration for PBXProject "Honey Slide" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -558,7 +558,7 @@
 			};
 			name = Release;
 		};
-		F94004BB3074D11500BC6413 /* Debug configuration for PBXNativeTarget "Space Lion" */ = {
+		F94004BB3074D11500BC6413 /* Debug configuration for PBXNativeTarget "Honey Slide" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -594,7 +594,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Hakketjak.Space-Lion";
+				PRODUCT_BUNDLE_IDENTIFIER = "Hakketjak.Honey-Slide";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = iphoneos;
@@ -609,7 +609,7 @@
 			};
 			name = Debug;
 		};
-		F94004BC3074D11500BC6413 /* Release configuration for PBXNativeTarget "Space Lion" */ = {
+		F94004BC3074D11500BC6413 /* Release configuration for PBXNativeTarget "Honey Slide" */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -645,7 +645,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 17;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Hakketjak.Space-Lion";
+				PRODUCT_BUNDLE_IDENTIFIER = "Hakketjak.Honey-Slide";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = iphoneos;
@@ -663,19 +663,19 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		F94004A83074D11400BC6413 /* Build configuration list for PBXProject "Space Lion" */ = {
+		F94004A83074D11400BC6413 /* Build configuration list for PBXProject "Honey Slide" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F94004B83074D11500BC6413 /* Debug configuration for PBXProject "Space Lion" */,
-				F94004B93074D11500BC6413 /* Release configuration for PBXProject "Space Lion" */,
+				F94004B83074D11500BC6413 /* Debug configuration for PBXProject "Honey Slide" */,
+				F94004B93074D11500BC6413 /* Release configuration for PBXProject "Honey Slide" */,
 			);
 			defaultConfigurationName = Release;
 		};
-		F94004BA3074D11500BC6413 /* Build configuration list for PBXNativeTarget "Space Lion" */ = {
+		F94004BA3074D11500BC6413 /* Build configuration list for PBXNativeTarget "Honey Slide" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				F94004BB3074D11500BC6413 /* Debug configuration for PBXNativeTarget "Space Lion" */,
-				F94004BC3074D11500BC6413 /* Release configuration for PBXNativeTarget "Space Lion" */,
+				F94004BB3074D11500BC6413 /* Debug configuration for PBXNativeTarget "Honey Slide" */,
+				F94004BC3074D11500BC6413 /* Release configuration for PBXNativeTarget "Honey Slide" */,
 			);
 			defaultConfigurationName = Release;
 		};

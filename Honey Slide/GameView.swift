@@ -279,7 +279,7 @@ struct GameView: View {
     private func placedHUD(in size: CGSize) -> some View {
         let topInset = max(screenInsets.top, isPad ? 24 : 16)
         let topReserve = cockpitTopReserve(below: topInset)
-        let cockpitMetrics = SpaceLionPlayfield.Metrics(
+        let cockpitMetrics = HoneySlideCockpit.Metrics(
             size: size,
             topReserve: topReserve,
             bottomReserve: screenInsets.bottom,
@@ -524,7 +524,7 @@ struct GameView: View {
             .transition(.opacity.combined(with: .scale(scale: 0.92)))
             .lineLimit(1)
             .minimumScaleFactor(0.42)
-            .accessibilityIdentifier("space-lion-question")
+            .accessibilityIdentifier("honey-slide-question")
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             .blur(radius: showsPauseCard ? (isPad ? 8 : 5.5) : 0)
             .scaleEffect(!hudIsFilled || revealsFirstQuestion ? 1 : 0.78)

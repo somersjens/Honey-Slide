@@ -28,7 +28,7 @@ source = (args.source_dir / "HoneySlidePlayfield.swift").read_text()
 source = source[source.index("private struct HoneySlideWorld:"):]
 # Offscreen rendering must be synchronous to measure a complete draw.
 source = source.replace("rendersAsynchronously: true", "rendersAsynchronously: false")
-for section in ["drawWorld", "drawLandscape", "drawSlide", "drawChurningHoney", "drawRailHoney", "drawCheckpoints", "dividerWall", "barrel"]:
+for section in ["drawWorld", "drawLandscape", "drawSlide", "drawChurningHoney", "drawRailHoney", "drawDepthObjects", "drawRailBlock", "drawCheckpoints", "dividerWall", "barrel"]:
     marker = "private func " + section + "("
     if marker not in source:
         continue
@@ -160,7 +160,10 @@ private struct BenchmarkScene: View {
                     }
                 }
                 var sim = initial
-                let renderer = ImageRenderer(content: BenchmarkScene(simulation: sim, phone: phone, bear: bear).frame(width: size.width, height: size.height))
+                let prompt = engine.round?.question.prompt ?? "…"
+                let score = max(0, engine.cards - sim.pendingHoney)
+                let renderer = ImageRenderer(content: BenchmarkScene(simulation: sim, phone: phone, bear: bear,
+                    prompt: prompt, score: score).frame(width: size.width, height: size.height))
                 renderer.scale = 2
                 var frameTimes: [Double] = []
                 var sections: [String: [Double]] = [:]
@@ -170,7 +173,8 @@ private struct BenchmarkScene: View {
                     RenderBenchmark.reset()
                     let start = RenderBenchmark.now
                     let cg: CGImage = autoreleasepool {
-                        renderer.content = BenchmarkScene(simulation: sim, phone: phone, bear: bear).frame(width: size.width, height: size.height)
+                        renderer.content = BenchmarkScene(simulation: sim, phone: phone, bear: bear,
+                            prompt: prompt, score: score).frame(width: size.width, height: size.height)
                         return renderer.cgImage!
                     }
                     let total = (RenderBenchmark.now - start) * 1000

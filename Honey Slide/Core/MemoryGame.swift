@@ -396,7 +396,7 @@ public final class MemoryGame {
         return true
     }
 
-    /// Ends an active run when Space Lion's level clock reaches zero.
+    /// Ends an active run when Honey Slide's level clock reaches zero.
     public func expireTime() {
         guard state != .intro, state != .gameOver else { return }
         finish(reason: .timeExpired)

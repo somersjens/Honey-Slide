@@ -15,7 +15,7 @@ public enum GameConfig {
 
     // MARK: Answers
 
-    /// Space Lion keeps six unique answers visible: three on each side wall.
+    /// Honey Slide keeps six unique answers visible: three on each side wall.
     /// The two bottom tiles of the old eight-button cockpit are gone.
     public static let answerBubbleCount = 6
 
@@ -166,7 +166,7 @@ public enum GameConfig {
     /// The second half of the catalog is Premium-exclusive: `nil` means the
     /// character cannot be earned with cards at all, no matter the total.
     public static let characterUnlockRequirements: [Int?] = [
-        0,          // lion — Space Lion starter
+        0,          // lion — Honey Slide starter
         500,        // octopus
         1_500,      // crab
         3_000,      // elephant

@@ -350,12 +350,12 @@ struct HomeView: View {
         .onAppear {
             // Decode the selected character's gameplay frames while the menu is
             // calm, so the first answer does not pay for a PNG decode.
-            SpaceLionPlayfield.prewarmArtwork(for: character)
+            HoneySlideCockpit.prewarmArtwork(for: character)
             AppAudio.shared.prepare()
             AppAudio.shared.startMusic()
         }
         .onChange(of: character.id) { _, _ in
-            SpaceLionPlayfield.prewarmArtwork(for: character)
+            HoneySlideCockpit.prewarmArtwork(for: character)
         }
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }

@@ -206,6 +206,10 @@ private struct HoneySlideWorld: View {
                     content: HoneyUnderbrushSymbol(variant: variant)).equatable()
                     .tag(variant + 4)
             }
+            ForEach(0..<2) { variant in
+                HoneyBitmapSymbol(key: "cliff:\(variant)", size: CGSize(width: 360, height: 330), density: 3,
+                    content: HoneyCliffSymbol(variant: variant)).equatable().tag(8 + variant)
+            }
             HoneyBitmapSymbol(key: "pot-base", size: CGSize(width: 308, height: 332), content: HoneyPotSymbol(crown: false)).equatable().tag(6)
             HoneyBitmapSymbol(key: "pot-crown", size: CGSize(width: 308, height: 332), content: HoneyPotSymbol(crown: true)).equatable().tag(7)
             HoneyBitmapSymbol(key: "closed-pot", size: CGSize(width: 308, height: 332), content: HoneyClosedPotSymbol()).equatable().tag("closed-pot")
@@ -259,163 +263,212 @@ private struct HoneySlideWorld: View {
     }
     private func drawWorld(_ c: inout GraphicsContext, projection: HoneySlideProjection, billboardYScale: Double) {
         c.fill(Path(CGRect(x: 0, y: 0, width: 1600, height: 900)), with: .linearGradient(
-            Gradient(colors: [Color(red: 0.22, green: 0.71, blue: 0.95), Color(red: 0.79, green: 0.94, blue: 0.77)]),
-            startPoint: .zero, endPoint: CGPoint(x: 0, y: 650)))
+            Gradient(colors: [Color(red: 0.20, green: 0.70, blue: 0.96), Color(red: 0.85, green: 0.96, blue: 0.88)]),
+            startPoint: .zero, endPoint: CGPoint(x: 0, y: 400)))
         let pan = sin(distance * 0.14) * 24
         for i in 0..<6 {
             let x = Double(i) * 320 - 100 - pan
             ellipse(&c, CGRect(x: x, y: 56 + Double(i % 3) * 28, width: 180, height: 42), [.white.opacity(0.75), .white.opacity(0.18)])
             ellipse(&c, CGRect(x: x + 35, y: 39 + Double(i % 3) * 28, width: 90, height: 54), [.white.opacity(0.85), .white.opacity(0.25)])
         }
-        // The distant skyline sits behind a continuous projected forest floor.
-        for layer in 0..<3 {
-            var ridge = Path(); ridge.move(to: CGPoint(x: -100, y: 900))
-            ridge.addLine(to: CGPoint(x: -100, y: 166 + layer * 12))
-            for i in 0..<7 {
-                let x = Double(i) * 290 - 100 - pan * Double(layer + 1) * 0.4
-                ridge.addQuadCurve(to: CGPoint(x: x + 290, y: Double(166 + layer * 12)),
-                                   control: CGPoint(x: x + 135, y: Double(75 + layer * 27 + i % 2 * 22)))
+        // A hazy sandstone skyline gives the forest a place in the landscape.
+        for layer in 0..<2 {
+            var ridge = Path()
+            ridge.move(to: CGPoint(x: -100, y: 250))
+            for i in 0..<9 {
+                let x = Double(i) * 215 - 110 - pan * Double(layer + 1) * 0.3
+                let y = Double(50 + layer * 29 + i % 3 * 18)
+                ridge.addLine(to: CGPoint(x: x, y: y + 58))
+                ridge.addQuadCurve(to: CGPoint(x: x + 52, y: y + 4), control: CGPoint(x: x + 38, y: y + 43))
+                ridge.addLine(to: CGPoint(x: x + 91, y: y))
+                ridge.addQuadCurve(to: CGPoint(x: x + 146, y: y + 65), control: CGPoint(x: x + 118, y: y + 8))
+                ridge.addLine(to: CGPoint(x: x + 215, y: y + 84))
             }
-            ridge.addLine(to: CGPoint(x: 1800, y: 900)); ridge.closeSubpath()
-            c.fill(ridge, with: .color([
-                Color(red: 0.49, green: 0.69, blue: 0.61),
-                Color(red: 0.34, green: 0.62, blue: 0.41),
-                Color(red: 0.20, green: 0.49, blue: 0.27)][layer]))
+            ridge.addLine(to: CGPoint(x: 1800, y: 300)); ridge.closeSubpath()
+            c.fill(ridge, with: .linearGradient(Gradient(colors: layer == 0 ? [
+                Color(red: 0.66, green: 0.77, blue: 0.77), Color(red: 0.73, green: 0.82, blue: 0.66)] : [
+                Color(red: 0.75, green: 0.70, blue: 0.48), Color(red: 0.40, green: 0.60, blue: 0.34)]),
+                startPoint: CGPoint(x: 0, y: 45), endPoint: CGPoint(x: 0, y: 230)))
         }
         drawLandscape(&c, projection: projection)
         drawSlide(&c, projection: projection)
-        drawCheckpoints(&c, billboardYScale: billboardYScale)
+        drawDepthObjects(&c, projection: projection, billboardYScale: billboardYScale)
     }
 
     private func drawLandscape(_ c: inout GraphicsContext, projection: HoneySlideProjection) {
-        // Every root and shadow lies on this same ground plane. The forest
-        // extends right to the course horizon, rather than starting at a row
-        // of trees floating above a static background hill.
-        c.fill(Path(CGRect(x: 0, y: 155, width: 1600, height: 745)), with: .linearGradient(
-            Gradient(colors: [Color(red: 0.37, green: 0.63, blue: 0.44),
-                              Color(red: 0.20, green: 0.48, blue: 0.16),
-                              Color(red: 0.11, green: 0.35, blue: 0.13)]),
-            startPoint: CGPoint(x: 0, y: 155), endPoint: CGPoint(x: 0, y: 900)))
-        for side in [-1.0, 1.0] {
-            c.fill(ribbon(side * 1.03, side * 1.30, projection), with: .color(Color(red: 0.56, green: 0.66, blue: 0.24)))
-            c.fill(ribbon(side * 1.30, side * 1.70, projection), with: .color(Color(red: 0.29, green: 0.55, blue: 0.18)))
-            c.fill(ribbon(side * 1.70, side * 2.50, projection), with: .color(.green.opacity(0.12)))
+        let horizon = HoneySlideRules.horizonY
+        var floor = Path(); floor.move(to: CGPoint(x: -20, y: 900))
+        floor.addLine(to: CGPoint(x: -20, y: horizon + 7))
+        for i in 0..<25 {
+            let x = Double(i) * 70 - 20
+            floor.addQuadCurve(to: CGPoint(x: x + 70, y: horizon + 7 + Double(i % 3) * 2),
+                control: CGPoint(x: x + 36, y: horizon - 13 - Double(i % 4) * 3))
         }
-        let world = simulation.distance
-        let step = HoneySlideRules.scenerySpacing
-        let first = Int(floor(world / step)) - 1
-        let last = Int(ceil((world + HoneySlideRules.drawDistance) / step))
-        // Three staggered bands fill the banks. All positions are fixed world
-        // positions; objects only enter at the tiny, fading horizon or offscreen.
-        for index in stride(from: last, through: first, by: -1) {
-            for band in (0..<3).reversed() {
-                for side in [-1.0, 1.0] {
-                    let seed = abs(index * 17 + band * 13 + (side > 0 ? 19 : 0))
-                    let ahead = Double(index) * step + Double(band) * 39 + (side > 0 ? 61 : 0)
-                        + Double(seed % 11) * 6 - 30 - world
-                    guard ahead > -80, ahead < HoneySlideRules.drawDistance else { continue }
-                    let t = HoneySlideRules.depth(ahead: ahead)
-                    let offset = side * (1.43 + Double(band) * 0.85 + Double(seed % 7) * 0.055)
-                    let p = point(t, offset, projection)
-                    let s = t * (1.13 + Double(seed % 5) * 0.075)
-                    // Cull the complete canopy, not just its trunk: a large
-                    // tree can enter from the side with its roots offscreen.
-                    guard p.x + 125 * s > 0, p.x - 125 * s < 1600 else { continue }
-                    var scenery = c
-                    scenery.opacity = HoneySlideRules.distantOpacity(ahead: ahead)
-                    if band == 1 && seed % 11 == 0 {
-                        cliff(&scenery, at: p, scale: s, phase: Double(index))
-                    } else if let symbol = c.resolveSymbol(id: seed % 4) {
-                        scenery.translateBy(x: p.x, y: p.y)
-                        scenery.scaleBy(x: s, y: s)
-                        scenery.draw(symbol, at: .zero, anchor: .bottom)
-                    }
-                }
-            }
-            // Low plants, rocks and flower patches make a continuous verge,
-            // with enough space between the trunks for the rail to read clearly.
-            for side in [-1.0, 1.0] {
-                let ahead = Double(index) * step + 94 - world
-                guard ahead > -80, ahead < HoneySlideRules.drawDistance else { continue }
-                let t = HoneySlideRules.depth(ahead: ahead)
-                let p = point(t, side * (1.14 + Double(abs(index) % 3) * 0.065), projection)
-                let s = t * 1.3
-                guard p.x + 110 * s > 0, p.x - 110 * s < 1600,
-                      let symbol = c.resolveSymbol(id: 4 + abs(index) % 2) else { continue }
-                var verge = c
-                verge.opacity = HoneySlideRules.distantOpacity(ahead: ahead)
-                verge.translateBy(x: p.x, y: p.y)
-                verge.scaleBy(x: s, y: s)
-                verge.draw(symbol, at: .zero, anchor: .bottom)
-            }
+        floor.addLine(to: CGPoint(x: 1720, y: 900)); floor.closeSubpath()
+        c.fill(floor, with: .linearGradient(
+            Gradient(colors: [Color(red: 0.39, green: 0.61, blue: 0.36),
+                              Color(red: 0.22, green: 0.43, blue: 0.15),
+                              Color(red: 0.10, green: 0.27, blue: 0.13)]),
+            startPoint: CGPoint(x: 0, y: horizon), endPoint: CGPoint(x: 0, y: 900)))
+        for side in [-1.0, 1.0] {
+            c.fill(ribbon(side * 1.035, side * 1.28, projection), with: .linearGradient(Gradient(colors: [
+                Color(red: 0.66, green: 0.69, blue: 0.31), Color(red: 0.36, green: 0.48, blue: 0.16)]),
+                startPoint: CGPoint(x: 0, y: horizon), endPoint: CGPoint(x: 0, y: 900)))
+            c.fill(ribbon(side * 1.28, side * 1.75, projection), with: .color(Color(red: 0.24, green: 0.46, blue: 0.15).opacity(0.5)))
         }
     }
 
     private func drawSlide(_ c: inout GraphicsContext, projection: HoneySlideProjection) {
         let gold = Color(red: 1.0, green: 0.68, blue: 0.025)
-        c.fill(ribbon(-1.05, 1.05, projection), with: .color(Color(red: 0.30, green: 0.16, blue: 0.035)))
+        c.fill(ribbon(-1.055, 1.055, projection), with: .color(Color(red: 0.30, green: 0.16, blue: 0.035)))
         c.fill(ribbon(-1, 1, projection), with: .linearGradient(Gradient(colors: [
             Color(red: 0.86, green: 0.48, blue: 0.02), gold,
             Color(red: 1, green: 0.82, blue: 0.20), gold]),
-            startPoint: CGPoint(x: 100, y: 180), endPoint: CGPoint(x: 1420, y: 920)))
+            startPoint: CGPoint(x: 100, y: HoneySlideRules.horizonY), endPoint: CGPoint(x: 1420, y: 920)))
         drawChurningHoney(&c, projection: projection)
         c.fill(ribbon(-1, -0.94, projection), with: .color(.brown.opacity(0.19)))
         c.fill(ribbon(0.94, 1, projection), with: .color(.brown.opacity(0.19)))
-        let samples = HoneySlideRules.trackDepthSamples
-        for side in [-1.0, 1.0] {
-            let feet = samples.map { point($0, side, projection) }
-            let tops = zip(feet, samples).map { p, depth in
-                CGPoint(x: p.x, y: p.y - HoneySlideRules.railHeight * depth)
-            }
-            var wall = Path()
-            // addLines starts a new subpath. Both edges must be submitted
-            // together, otherwise each closes across the entire winding course.
-            wall.addLines(feet + tops.reversed())
-            wall.closeSubpath()
-            c.fill(wall, with: .linearGradient(Gradient(colors: [
-                Color(red: 0.86, green: 0.56, blue: 0.23), Color(red: 0.43, green: 0.21, blue: 0.07)]),
-                startPoint: CGPoint(x: 0, y: 280), endPoint: CGPoint(x: 0, y: 920)))
-            // A variable-width continuous cap replaces hundreds of separate
-            // overlapping round strokes and their individual draw commands.
-            c.fill(railRibbon(tops, depths: samples, width: 24),
-                   with: .color(Color(red: 1, green: 0.65, blue: 0.04)))
-            c.fill(railRibbon(tops, depths: samples, width: 6),
-                   with: .color(Color(red: 1, green: 0.94, blue: 0.63)))
-        }
-        // World-fixed joints share one fill; their width still follows depth.
-        let world = simulation.distance
-        let joint = Int(floor(world / 48))
-        var seams = Path()
-        for index in (joint - 2)...(joint + 85) {
-            let ahead = Double(index) * 48 - world
-            guard ahead > -80 else { continue }
-            let t = HoneySlideRules.depth(ahead: ahead)
-            for side in [-1.0, 1.0] {
-                let p = point(t, side, projection)
-                let height = HoneySlideRules.railHeight * t
-                let rect = CGRect(x: p.x - max(0.1, 3 * t) / 2, y: p.y - height,
-                                  width: max(0.1, 3 * t), height: height)
-                seams.addRect(rect)
-            }
-        }
-        c.fill(seams, with: .color(.brown.opacity(0.55)))
-        drawRailHoney(&c, projection: projection)
     }
 
-    private func railRibbon(_ points: [CGPoint], depths: [Double], width: Double) -> Path {
-        var left: [CGPoint] = [], right: [CGPoint] = []
-        left.reserveCapacity(points.count); right.reserveCapacity(points.count)
-        for i in points.indices {
-            let before = points[max(0, i - 1)], after = points[min(points.count - 1, i + 1)]
-            let dx = after.x - before.x, dy = after.y - before.y
-            let length = max(0.0001, hypot(dx, dy))
-            let radius = max(0.05, width * depths[i]) / 2
-            let nx = -dy / length * radius, ny = dx / length * radius
-            left.append(CGPoint(x: points[i].x + nx, y: points[i].y + ny))
-            right.append(CGPoint(x: points[i].x - nx, y: points[i].y - ny))
+    private enum DepthContent {
+        case plant(Int, CGPoint, Double)
+        case rail(Double, Double, Double, Int)
+        case divider(Int, Double, Int)
+        case pots(Int)
+    }
+    private struct DepthObject {
+        let ahead: Double
+        let content: DepthContent
+    }
+
+    private func drawDepthObjects(_ c: inout GraphicsContext, projection: HoneySlideProjection, billboardYScale: Double) {
+        let world = simulation.distance, step = HoneySlideRules.scenerySpacing
+        let first = Int(floor(world / step)) - 2
+        let last = Int(ceil((world + HoneySlideRules.drawDistance) / step))
+        var objects: [DepthObject] = []
+        objects.reserveCapacity(850)
+        for index in first...last {
+            for band in 0..<3 {
+                for side in [-1.0, 1.0] {
+                    let seed = abs(index * 17 + band * 13 + (side > 0 ? 19 : 0))
+                    let ahead = Double(index) * step + Double(band) * 39 + (side > 0 ? 61 : 0)
+                        + Double(seed % 11) * 6 - 30 - world
+                    guard ahead > -120, ahead < HoneySlideRules.drawDistance else { continue }
+                    let t = HoneySlideRules.depth(ahead: ahead)
+                    let offset = side * (1.48 + Double(band) * 0.88 + Double(seed % 7) * 0.055)
+                    let p = point(t, offset, projection)
+                    let scale = t * (1.16 + Double(seed % 5) * 0.075)
+                    let isCliff = band == 1 && seed % 13 == 0
+                    let width = isCliff ? 180.0 : 125.0
+                    guard p.x + width * scale > 0, p.x - width * scale < 1600,
+                          p.y - (isCliff ? 330 : 300) * scale < 920 else { continue }
+                    objects.append(DepthObject(ahead: ahead, content: .plant(isCliff ? 8 + seed % 2 : (band == 2 && seed % 4 == 0 ? 4 + seed % 2 : seed % 4), p, scale)))
+                }
+            }
+            for side in [-1.0, 1.0] {
+                let ahead = Double(index) * step + 94 - world
+                guard ahead > -120, ahead < HoneySlideRules.drawDistance else { continue }
+                let t = HoneySlideRules.depth(ahead: ahead)
+                let p = point(t, side * (1.19 + Double(abs(index) % 3) * 0.075), projection)
+                let scale = t * 1.32
+                guard p.x + 110 * scale > 0, p.x - 110 * scale < 1600, p.y - 112 * scale < 920 else { continue }
+                objects.append(DepthObject(ahead: ahead, content: .plant(4 + abs(index) % 2, p, scale)))
+            }
         }
-        var path = Path(); path.addLines(left + right.reversed()); path.closeSubpath()
-        return path
+        // Raised objects share one far-to-near ordering. A nearby canopy can
+        // cover a distant bend, while a nearby rail still covers distant roots.
+        let blockLength = 72.0
+        let firstBlock = Int(floor((world - 88) / blockLength))
+        let lastBlock = Int(ceil((world + HoneySlideRules.drawDistance) / blockLength))
+        for index in firstBlock...lastBlock {
+            let near = max(-88, Double(index) * blockLength - world)
+            let far = min(HoneySlideRules.drawDistance, Double(index + 1) * blockLength - world)
+            guard near < far else { continue }
+            for side in [-1.0, 1.0] {
+                objects.append(DepthObject(ahead: (near + far) / 2, content: .rail(near, far, side, index)))
+            }
+        }
+        for (index, row) in simulation.checkpoints.enumerated() {
+            let ahead = row.worldPosition - world
+            guard ahead + HoneySlideRules.dividerTail > HoneySlideRules.nearClipAhead,
+                  ahead < HoneySlideRules.drawDistance, row.options.count == 3 else { continue }
+            for section in 0..<HoneySlideRules.dividerSections {
+                let segment = HoneySlideRules.dividerSegment(rowPosition: row.worldPosition, index: section)
+                guard segment.far - world > HoneySlideRules.nearClipAhead else { continue }
+                for lateral in [-HoneySlideRules.laneBoundary, HoneySlideRules.laneBoundary] {
+                    objects.append(DepthObject(ahead: (segment.far + segment.near) / 2 - world,
+                        content: .divider(index, lateral, section)))
+                }
+            }
+            objects.append(DepthObject(ahead: ahead, content: .pots(index)))
+        }
+        objects.sort { $0.ahead > $1.ahead }
+        for object in objects {
+            var layer = c
+            layer.opacity = HoneySlideRules.distantOpacity(ahead: object.ahead)
+            switch object.content {
+            case let .plant(id, p, scale):
+                guard let symbol = c.resolveSymbol(id: id) else { continue }
+                layer.translateBy(x: p.x, y: p.y)
+                layer.scaleBy(x: scale, y: scale)
+                layer.draw(symbol, at: .zero, anchor: .bottom)
+            case let .rail(near, far, side, index):
+                drawRailBlock(&layer, near: near, far: far, side: side, index: index, projection: projection)
+            case let .divider(index, lateral, section):
+                dividerWall(&layer, rowPosition: simulation.checkpoints[index].worldPosition, lateral: lateral, section: section)
+            case let .pots(index):
+                drawCheckpoints(&layer, row: simulation.checkpoints[index], billboardYScale: billboardYScale)
+            }
+        }
+    }
+
+    private func drawRailBlock(_ c: inout GraphicsContext, near: Double, far: Double, side: Double,
+                               index: Int, projection: HoneySlideProjection) {
+        let depths = [far, (far + near) / 2, near].map { HoneySlideRules.depth(ahead: $0) }
+        let inside = depths.map { point($0, side, projection) }
+        let outside = depths.map { point($0, side * 1.055, projection) }
+        let innerTop = zip(inside, depths).map { CGPoint(x: $0.0.x, y: $0.0.y - HoneySlideRules.railHeight * $0.1) }
+        let outerTop = zip(outside, depths).map { CGPoint(x: $0.0.x, y: $0.0.y - HoneySlideRules.railHeight * $0.1) }
+        guard max(inside.map(\.x).max()!, outside.map(\.x).max()!) > -60,
+              min(inside.map(\.x).min()!, outside.map(\.x).min()!) < 1660 else { return }
+        func face(_ points: [CGPoint]) -> Path { var path = Path(); path.addLines(points); path.closeSubpath(); return path }
+        let t = depths[1], warm = Double(abs(index) % 4) * 0.025
+        let inner = face(inside + innerTop.reversed())
+        c.fill(face(outside + outerTop.reversed()), with: .color(Color(red: 0.35 + warm, green: 0.22, blue: 0.11)))
+        c.fill(inner, with: .linearGradient(Gradient(colors: [
+            Color(red: 0.76 + warm, green: 0.48 + warm, blue: 0.22),
+            Color(red: 0.43 + warm, green: 0.23, blue: 0.10)]),
+            startPoint: innerTop[1], endPoint: inside[1]))
+        c.fill(face(innerTop + outerTop.reversed()), with: .linearGradient(Gradient(colors: [
+            Color(red: 0.98, green: 0.80, blue: 0.38), Color(red: 0.87, green: 0.59, blue: 0.25)]),
+            startPoint: outerTop[1], endPoint: innerTop[1]))
+        // The cap is a real projected top surface, with an amber lip and gloss.
+        var lip = Path(); lip.addLines(innerTop)
+        c.stroke(lip, with: .color(Color(red: 0.99, green: 0.62, blue: 0.02)), style: StrokeStyle(lineWidth: 8 * t, lineCap: .round))
+        c.stroke(lip.offsetBy(dx: side * 2 * t, dy: -2 * t), with: .color(Color(red: 1, green: 0.94, blue: 0.62)),
+                 style: StrokeStyle(lineWidth: 2.5 * t, lineCap: .round))
+        var joint = Path(); joint.move(to: outside[2]); joint.addLine(to: outerTop[2]); joint.addLine(to: innerTop[2]); joint.addLine(to: inside[2])
+        c.stroke(joint, with: .color(Color(red: 0.27, green: 0.15, blue: 0.065).opacity(0.65)), lineWidth: max(0.3, 2.8 * depths[2]))
+        if t > 0.15 {
+            var grain = Path()
+            for fraction in [0.30, 0.68] {
+                grain.move(to: CGPoint(x: inside[0].x, y: inside[0].y - HoneySlideRules.railHeight * depths[0] * fraction))
+                grain.addQuadCurve(to: CGPoint(x: inside[2].x, y: inside[2].y - HoneySlideRules.railHeight * depths[2] * fraction),
+                    control: CGPoint(x: inside[1].x, y: inside[1].y - HoneySlideRules.railHeight * t * (fraction + 0.04)))
+            }
+            c.stroke(grain, with: .color(Color(red: 0.96, green: 0.73, blue: 0.39).opacity(0.28)), lineWidth: 1.3 * t)
+        }
+        if abs(index) % 3 == 0 {
+            let top = innerTop[1], length = Double(25 + abs(index) % 4 * 7) * t
+            var drip = Path(); drip.move(to: top)
+            drip.addCurve(to: CGPoint(x: top.x - side * 8 * t, y: top.y + length),
+                control1: CGPoint(x: top.x - side * 12 * t, y: top.y + 3 * t),
+                control2: CGPoint(x: top.x - side * 3 * t, y: top.y + length * 0.75))
+            c.stroke(drip, with: .color(Color(red: 0.89, green: 0.40, blue: 0.01)), style: StrokeStyle(lineWidth: 15 * t, lineCap: .round))
+            c.stroke(drip, with: .color(Color(red: 1, green: 0.76, blue: 0.035)), style: StrokeStyle(lineWidth: 11 * t, lineCap: .round))
+            c.stroke(drip.offsetBy(dx: -2 * t, dy: -2 * t), with: .color(Color(red: 1, green: 0.98, blue: 0.77).opacity(0.8)),
+                     style: StrokeStyle(lineWidth: 2 * t, lineCap: .round))
+        }
     }
 
     /// Raised, filled waves and rotating eddies share the course projection.
@@ -523,92 +576,34 @@ private struct HoneySlideWorld: View {
         }
     }
 
-    private func drawRailHoney(_ c: inout GraphicsContext, projection: HoneySlideProjection) {
-        let world = simulation.distance
-        let first = Int(floor(world / 160)) - 1
-        let last = Int(ceil((world + HoneySlideRules.drawDistance) / 160))
-        for index in stride(from: last, through: first, by: -1) {
-            let ahead = Double(index) * 160 - world
-            guard ahead > -80, ahead < HoneySlideRules.drawDistance else { continue }
-            let t = HoneySlideRules.depth(ahead: ahead)
-            for side in [-1.0, 1.0] {
-                let foot = point(t, side, projection)
-                guard foot.x > -80 && foot.x < 1680 else { continue }
-                let top = CGPoint(x: foot.x, y: foot.y - HoneySlideRules.railHeight * t)
-                let length = Double(26 + abs(index) % 4 * 8) * t
-                var honey = c
-                honey.opacity = HoneySlideRules.distantOpacity(ahead: ahead)
-                // Rounded tongues cling to the wood and droop into the channel.
-                var drip = Path()
-                drip.move(to: CGPoint(x: top.x - side * 10 * t, y: top.y - 5 * t))
-                drip.addQuadCurve(to: CGPoint(x: top.x - side * 13 * t, y: top.y + length),
-                                  control: CGPoint(x: top.x - side * 26 * t, y: top.y + length * 0.45))
-                honey.stroke(drip, with: .color(Color(red: 1, green: 0.62, blue: 0.015)),
-                             style: StrokeStyle(lineWidth: 22 * t, lineCap: .round))
-                honey.stroke(drip, with: .color(.yellow),
-                             style: StrokeStyle(lineWidth: 13 * t, lineCap: .round))
-                var highlight = Path()
-                highlight.move(to: CGPoint(x: top.x - side * 12 * t, y: top.y - 3 * t))
-                highlight.addLine(to: CGPoint(x: top.x - side * 17 * t, y: top.y + length * 0.55))
-                honey.stroke(highlight, with: .color(.white.opacity(0.8)),
-                             style: StrokeStyle(lineWidth: 3 * t, lineCap: .round))
-                if abs(index) % 3 == 0 {
-                    var spill = Path()
-                    spill.move(to: top)
-                    spill.addQuadCurve(to: CGPoint(x: top.x + side * 19 * t, y: foot.y + 8 * t),
-                                       control: CGPoint(x: top.x + side * 30 * t, y: top.y + 18 * t))
-                    honey.stroke(spill, with: .color(.orange),
-                                 style: StrokeStyle(lineWidth: 25 * t, lineCap: .round))
-                    honey.stroke(spill, with: .color(.yellow.opacity(0.85)),
-                                 style: StrokeStyle(lineWidth: 14 * t, lineCap: .round))
-                    ellipse(&honey, CGRect(x: foot.x + side * 18 * t - 22 * t, y: foot.y + 2 * t,
-                                          width: 44 * t, height: 13 * t), [.yellow, .orange])
-                }
-                if t > 0.12 {
-                    let phase = (distance * 2.4 + Double(abs(index) % 9) / 9).truncatingRemainder(dividingBy: 1)
-                    let x = top.x + side * (10 + phase * 52) * t
-                    let y = top.y + (phase * 42 - sin(phase * .pi) * 62) * t
-                    honey.opacity *= (1 - phase) * 0.75
-                    ellipse(&honey, CGRect(x: x, y: y, width: 7 * t, height: 15 * t), [.white, .yellow])
-                }
+    private func drawCheckpoints(_ c: inout GraphicsContext, row: HoneyCheckpoint, billboardYScale: Double) {
+        let ahead = row.worldPosition - simulation.distance
+        guard ahead + HoneySlideRules.dividerTail > HoneySlideRules.nearClipAhead,
+              ahead < HoneySlideRules.drawDistance, row.options.count == 3 else { return }
+        let rowContext = c
+        let t = HoneySlideRules.depth(ahead: ahead)
+        let s = HoneySlideRules.answerScale(depth: t)
+        guard ahead > HoneySlideRules.nearClipAhead else { return }
+        for i in 0..<3 {
+            let selected = row.selectedIndex == i
+            if selected && row.wasCorrect && collectionTarget != nil { continue }
+            let tumble = selected ? min(1, (distance - (row.impactAt ?? distance)) / HoneySlideRules.tumbleDuration) : 0
+            if selected && tumble >= 1 { continue }
+            let bounds = HoneySlideRules.potBounds(depth: t, lateral: Double(i - 1) * 0.66,
+                elapsed: distance, billboardYScale: billboardYScale, course: simulation.course)
+            guard bounds.insetBy(dx: selected ? -150 * s : 0, dy: selected ? -70 * s : 0)
+                .intersects(CGRect(x: 0, y: 0, width: 1600, height: 900)) else { continue }
+            let p = ridingPoint(t, Double(i - 1) * 0.66)
+            var potContext = rowContext
+            potContext.translateBy(x: p.x, y: p.y)
+            potContext.scaleBy(x: 1, y: billboardYScale)
+            if selected && !row.wasCorrect {
+                let side = i == 0 ? -1.0 : 1.0
+                drawImpactSplash(&potContext, scale: s, progress: tumble, side: side)
+                drawSinkingPot(&potContext, scale: s, progress: tumble, side: side, text: row.options[i].text)
+                continue
             }
-        }
-    }
-
-    private func drawCheckpoints(_ c: inout GraphicsContext, billboardYScale: Double) {
-        for row in simulation.checkpoints.reversed() {
-            let ahead = row.worldPosition - simulation.distance
-            guard ahead + HoneySlideRules.dividerTail > HoneySlideRules.nearClipAhead,
-                  ahead < HoneySlideRules.drawDistance, row.options.count == 3 else { continue }
-            var rowContext = c
-            rowContext.opacity = HoneySlideRules.distantOpacity(ahead: ahead)
-            let t = HoneySlideRules.depth(ahead: ahead)
-            let s = HoneySlideRules.answerScale(depth: t)
-            for divider in [-HoneySlideRules.laneBoundary, HoneySlideRules.laneBoundary] {
-                dividerWall(&rowContext, rowPosition: row.worldPosition, lateral: divider)
-            }
-            guard ahead > HoneySlideRules.nearClipAhead else { continue }
-            for i in 0..<3 {
-                let selected = row.selectedIndex == i
-                if selected && row.wasCorrect && collectionTarget != nil { continue }
-                let tumble = selected ? min(1, (distance - (row.impactAt ?? distance)) / HoneySlideRules.tumbleDuration) : 0
-                if selected && tumble >= 1 { continue }
-                let bounds = HoneySlideRules.potBounds(depth: t, lateral: Double(i - 1) * 0.66,
-                    elapsed: distance, billboardYScale: billboardYScale, course: simulation.course)
-                guard bounds.insetBy(dx: selected ? -150 * s : 0, dy: selected ? -70 * s : 0)
-                    .intersects(CGRect(x: 0, y: 0, width: 1600, height: 900)) else { continue }
-                let p = ridingPoint(t, Double(i - 1) * 0.66)
-                var potContext = rowContext
-                potContext.translateBy(x: p.x, y: p.y)
-                potContext.scaleBy(x: 1, y: billboardYScale)
-                if selected && !row.wasCorrect {
-                    let side = i == 0 ? -1.0 : 1.0
-                    drawImpactSplash(&potContext, scale: s, progress: tumble, side: side)
-                    drawSinkingPot(&potContext, scale: s, progress: tumble, side: side, text: row.options[i].text)
-                    continue
-                }
-                barrel(&potContext, scale: s, text: row.options[i].text, opening: row.shutterProgress(at: distance))
-            }
+            barrel(&potContext, scale: s, text: row.options[i].text, opening: row.shutterProgress(at: distance))
         }
     }
 
@@ -657,111 +652,67 @@ private struct HoneySlideWorld: View {
         }
     }
 
-    private func dividerWall(_ c: inout GraphicsContext, rowPosition: Double, lateral: Double) {
+    private func dividerWall(_ c: inout GraphicsContext, rowPosition: Double, lateral: Double, section: Int) {
+        let segment = HoneySlideRules.dividerSegment(rowPosition: rowPosition, index: section)
+        let far = segment.far - simulation.distance
+        guard far > HoneySlideRules.nearClipAhead else { return }
+        let near = max(HoneySlideRules.nearClipAhead, segment.near - simulation.distance)
+        let tf = HoneySlideRules.depth(ahead: far), tn = HoneySlideRules.depth(ahead: near)
         let half = HoneySlideRules.dividerHalfWidth
-        var shadow = Path(), leftFace = Path(), rightFace = Path(), topFace = Path()
-        var orangeEdge = Path(), yellowEdge = Path(), edgeGloss = Path()
-        var joints: [(Path, Double)] = []
-        var drips: [(CGPoint, Double)] = []
-        var nose: (CGPoint, CGPoint, Double)?
-        func face(_ points: [CGPoint]) -> Path {
-            var p = Path(); p.addLines(points); p.closeSubpath(); return p
-        }
-        // Fixed world blocks, batched into four surfaces. Detail remains
-        // stable without paying for a separate gradient for every block.
-        for i in 0..<HoneySlideRules.dividerSections {
-            let segment = HoneySlideRules.dividerSegment(rowPosition: rowPosition, index: i)
-            let far = segment.far - simulation.distance
-            guard far > HoneySlideRules.nearClipAhead else { continue }
-            let near = max(HoneySlideRules.nearClipAhead, segment.near - simulation.distance)
-            let tf = HoneySlideRules.depth(ahead: far), tn = HoneySlideRules.depth(ahead: near)
-            let fl = ridingPoint(tf, lateral - half), fr = ridingPoint(tf, lateral + half)
-            let nl = ridingPoint(tn, lateral - half), nr = ridingPoint(tn, lateral + half)
-            let hf = HoneySlideRules.dividerHeight * tf, hn = HoneySlideRules.dividerHeight * tn
-            let topFL = CGPoint(x: fl.x, y: fl.y - hf), topFR = CGPoint(x: fr.x, y: fr.y - hf)
-            let topNL = CGPoint(x: nl.x, y: nl.y - hn), topNR = CGPoint(x: nr.x, y: nr.y - hn)
-            guard min(topFL.y, topFR.y) < 920 else { continue }
-            shadow.addPath(face([fl, fr, nr, nl]).offsetBy(dx: 8 * tn, dy: 9 * tn))
-            leftFace.addPath(face([fl, topFL, topNL, nl]))
-            rightFace.addPath(face([fr, topFR, topNR, nr]))
-            topFace.addPath(face([topFL, topFR, topNR, topNL]))
-            addBand(to: &orangeEdge, from: topFL, to: topNL, farWidth: 11 * tf, nearWidth: 11 * tn, farShift: 2 * tf, nearShift: 2 * tn)
-            addBand(to: &yellowEdge, from: topFL, to: topNL, farWidth: 7 * tf, nearWidth: 7 * tn)
-            addBand(to: &edgeGloss, from: topFL, to: topNL, farWidth: 2 * tf, nearWidth: 2 * tn, farShift: -2 * tf, nearShift: -2 * tn)
-            if i % 3 == 1 { drips.append((topFR, tf)) }
-            if i % 2 == 0 {
-                var joint = Path(); joint.move(to: topNL); joint.addLine(to: topNR); joint.addLine(to: nr)
-                joints.append((joint, tn))
+        let fl = ridingPoint(tf, lateral - half), fr = ridingPoint(tf, lateral + half)
+        let nl = ridingPoint(tn, lateral - half), nr = ridingPoint(tn, lateral + half)
+        let hf = HoneySlideRules.dividerHeight * tf, hn = HoneySlideRules.dividerHeight * tn
+        let topFL = CGPoint(x: fl.x, y: fl.y - hf), topFR = CGPoint(x: fr.x, y: fr.y - hf)
+        let topNL = CGPoint(x: nl.x, y: nl.y - hn), topNR = CGPoint(x: nr.x, y: nr.y - hn)
+        guard topFL.y < 920, max(fr.x, nr.x) > -80, min(fl.x, nl.x) < 1680 else { return }
+        func face(_ points: [CGPoint]) -> Path { var path = Path(); path.addLines(points); path.closeSubpath(); return path }
+        let warmth = Double(section % 3) * 0.025
+        c.fill(face([fl, fr, nr, nl]).offsetBy(dx: 6 * tn, dy: 7 * tn), with: .color(.brown.opacity(0.24)))
+        c.fill(face([fl, topFL, topNL, nl]), with: .linearGradient(Gradient(colors: [
+            Color(red: 0.77 + warmth, green: 0.49, blue: 0.23), Color(red: 0.39 + warmth, green: 0.22, blue: 0.10)]),
+            startPoint: topNL, endPoint: nl))
+        c.fill(face([fr, topFR, topNR, nr]), with: .linearGradient(Gradient(colors: [
+            Color(red: 0.87, green: 0.61 + warmth, blue: 0.29), Color(red: 0.48, green: 0.27, blue: 0.12)]),
+            startPoint: topNR, endPoint: nr))
+        c.fill(face([topFL, topFR, topNR, topNL]), with: .linearGradient(Gradient(colors: [
+            Color(red: 1, green: 0.88, blue: 0.43), Color(red: 0.95, green: 0.65, blue: 0.19)]),
+            startPoint: topFL, endPoint: topNR))
+        var lip = Path(); lip.move(to: topFL); lip.addLine(to: topNL)
+        c.stroke(lip, with: .color(Color(red: 1, green: 0.66, blue: 0.035)), style: StrokeStyle(lineWidth: 7 * tf, lineCap: .round))
+        c.stroke(lip.offsetBy(dx: -tf, dy: -tf), with: .color(Color(red: 1, green: 0.97, blue: 0.72)),
+            style: StrokeStyle(lineWidth: 2 * tf, lineCap: .round))
+        var joint = Path(); joint.move(to: topNL); joint.addLine(to: topNR); joint.addLine(to: nr)
+        c.stroke(joint, with: .color(Color(red: 0.31, green: 0.18, blue: 0.08).opacity(0.6)), lineWidth: 2 * tn)
+        if tn > 0.15 {
+            var grain = Path()
+            for fraction in [0.35, 0.72] {
+                grain.move(to: CGPoint(x: fr.x, y: fr.y - hf * fraction))
+                grain.addLine(to: CGPoint(x: nr.x, y: nr.y - hn * fraction))
             }
-            if i == HoneySlideRules.dividerSections - 1 { nose = (nl, nr, tn) }
+            c.stroke(grain, with: .color(Color(red: 1, green: 0.84, blue: 0.49).opacity(0.25)), lineWidth: 1.2 * tn)
         }
-        guard !topFace.isEmpty else { return }
-        c.fill(shadow, with: .color(.brown.opacity(0.23)))
-        c.fill(leftFace, with: .linearGradient(Gradient(colors: [
-            Color(red: 0.77, green: 0.44, blue: 0.15), Color(red: 0.36, green: 0.16, blue: 0.045)]),
-            startPoint: CGPoint(x: 0, y: 180), endPoint: CGPoint(x: 0, y: 1000)))
-        c.fill(rightFace, with: .linearGradient(Gradient(colors: [
-            Color(red: 0.88, green: 0.52, blue: 0.18), Color(red: 0.49, green: 0.23, blue: 0.065)]),
-            startPoint: CGPoint(x: 0, y: 180), endPoint: CGPoint(x: 0, y: 1000)))
-        c.fill(topFace, with: .linearGradient(Gradient(colors: [
-            Color(red: 1, green: 0.87, blue: 0.32), Color(red: 0.93, green: 0.56, blue: 0.13)]),
-            startPoint: CGPoint(x: 0, y: 180), endPoint: CGPoint(x: 0, y: 1000)))
-        c.fill(orangeEdge, with: .color(.orange))
-        c.fill(yellowEdge, with: .color(.yellow))
-        c.fill(edgeGloss, with: .color(Color(red: 1, green: 0.97, blue: 0.72)))
-        for (p, t) in drips {
-            var drip = Path(); drip.move(to: p)
-            drip.addQuadCurve(to: CGPoint(x: p.x + 3 * t, y: p.y + 24 * t),
-                              control: CGPoint(x: p.x + 9 * t, y: p.y + 7 * t))
-            c.stroke(drip, with: .color(.orange), style: StrokeStyle(lineWidth: 9 * t, lineCap: .round))
-            c.stroke(drip, with: .color(.yellow), style: StrokeStyle(lineWidth: 5 * t, lineCap: .round))
+        if section % 3 == 1 {
+            var drip = Path(); drip.move(to: topFR)
+            drip.addCurve(to: CGPoint(x: topFR.x + 2 * tf, y: topFR.y + 22 * tf),
+                control1: CGPoint(x: topFR.x + 10 * tf, y: topFR.y + 2 * tf),
+                control2: CGPoint(x: topFR.x + 2 * tf, y: topFR.y + 12 * tf))
+            c.stroke(drip, with: .color(Color(red: 0.94, green: 0.49, blue: 0.01)), style: StrokeStyle(lineWidth: 9 * tf, lineCap: .round))
+            c.stroke(drip, with: .color(Color(red: 1, green: 0.81, blue: 0.16)), style: StrokeStyle(lineWidth: 5 * tf, lineCap: .round))
         }
-        for (joint, t) in joints {
-            c.stroke(joint, with: .color(Color(red: 0.49, green: 0.25, blue: 0.075)), lineWidth: 2 * t)
-        }
-        if let (nl, nr, t) = nose {
-            let width = nr.x - nl.x, height = HoneySlideRules.dividerHeight * t
-            let rect = CGRect(x: nl.x, y: nl.y - height, width: width, height: height + 5 * t)
-            c.fill(Path(roundedRect: rect, cornerRadius: width * 0.4), with: .linearGradient(Gradient(colors: [
-                Color(red: 0.93, green: 0.62, blue: 0.22), Color(red: 0.45, green: 0.21, blue: 0.06)]),
+        if section == HoneySlideRules.dividerSections - 1 {
+            let width = nr.x - nl.x
+            let rect = CGRect(x: nl.x, y: nl.y - hn, width: width, height: hn + 3 * tn)
+            c.fill(Path(roundedRect: rect, cornerRadius: width * 0.35), with: .linearGradient(Gradient(colors: [
+                Color(red: 0.86, green: 0.59, blue: 0.29), Color(red: 0.40, green: 0.23, blue: 0.11)]),
                 startPoint: rect.origin, endPoint: CGPoint(x: rect.maxX, y: rect.maxY)))
-            ellipse(&c, CGRect(x: nl.x - 2 * t, y: nl.y - height - width * 0.15, width: width + 4 * t, height: width * 0.46),
-                    [Color(red: 1, green: 0.96, blue: 0.56), .yellow, .orange])
-            rounded(&c, CGRect(x: nl.x + width * 0.17, y: nl.y - height,
-                              width: width * 0.15, height: height * 0.6), width * 0.075, .yellow)
-            ellipse(&c, CGRect(x: nl.x - 12 * t, y: nl.y - 3 * t, width: width + 24 * t, height: 12 * t),
-                    [.yellow.opacity(0.8), .orange.opacity(0)])
+            ellipse(&c, CGRect(x: nl.x - 2 * tn, y: nl.y - hn - width * 0.18, width: width + 4 * tn, height: width * 0.47),
+                [Color(red: 1, green: 0.96, blue: 0.59), Color(red: 1, green: 0.72, blue: 0.04), Color(red: 0.96, green: 0.50, blue: 0.01)])
+            rounded(&c, CGRect(x: nl.x + width * 0.22, y: nl.y - hn, width: width * 0.15, height: hn * 0.56), width * 0.075,
+                Color(red: 1, green: 0.82, blue: 0.22))
+            // The nose sits in honey; its small wake is drawn in ground space.
+            ellipse(&c, CGRect(x: nl.x - 9 * tn, y: nl.y - 1 * tn, width: width + 18 * tn, height: 8 * tn),
+                [Color(red: 1, green: 0.94, blue: 0.53).opacity(0.8), .yellow.opacity(0)])
         }
-    }
-
-    /// Batch a perspective-width band without per-block rounded strokes.
-    private func addBand(to path: inout Path, from a: CGPoint, to b: CGPoint,
-                         farWidth: Double, nearWidth: Double, farShift: Double = 0, nearShift: Double = 0) {
-        let dx = b.x - a.x, dy = b.y - a.y
-        let length = max(0.0001, hypot(dx, dy))
-        let nx = -dy / length / 2, ny = dx / length / 2
-        path.move(to: CGPoint(x: a.x + nx * farWidth, y: a.y + farShift + ny * farWidth))
-        path.addLine(to: CGPoint(x: b.x + nx * nearWidth, y: b.y + nearShift + ny * nearWidth))
-        path.addLine(to: CGPoint(x: b.x - nx * nearWidth, y: b.y + nearShift - ny * nearWidth))
-        path.addLine(to: CGPoint(x: a.x - nx * farWidth, y: a.y + farShift - ny * farWidth))
-        path.closeSubpath()
-    }
-
-    private func cliff(_ c: inout GraphicsContext, at p: CGPoint, scale s: Double, phase: Double) {
-        let rock = CGRect(x: p.x - 90 * s, y: p.y - 150 * s, width: 180 * s, height: 153 * s)
-        c.fill(Path(roundedRect: rock, cornerRadius: 20 * s), with: .linearGradient(Gradient(colors: [
-            Color(red: 0.74, green: 0.61, blue: 0.42), Color(red: 0.41, green: 0.34, blue: 0.23)]),
-            startPoint: rock.origin, endPoint: CGPoint(x: rock.maxX, y: rock.maxY)))
-        for i in 0..<3 {
-            let x = p.x - 65 * s + Double(i) * 43 * s
-            rounded(&c, CGRect(x: x, y: p.y - 152 * s, width: 31 * s, height: 150 * s), 15 * s, .orange)
-            rounded(&c, CGRect(x: x + 7 * s, y: p.y - 150 * s, width: 7 * s, height: 140 * s), 3 * s, .yellow.opacity(0.8))
-            let pulse = (distance * 2.3 + phase + Double(i) * 0.33).truncatingRemainder(dividingBy: 1)
-            ellipse(&c, CGRect(x: x + 10 * s, y: p.y - 140 * s + pulse * 120 * s, width: 8 * s, height: 24 * s),
-                    [.white.opacity(0.65), .yellow.opacity(0.05)])
-        }
-        ellipse(&c, CGRect(x: p.x - 102 * s, y: p.y - 169 * s, width: 205 * s, height: 38 * s), [.yellow, .orange])
-        ellipse(&c, CGRect(x: p.x - 105 * s, y: p.y - 7 * s, width: 210 * s, height: 19 * s), [.orange, .yellow.opacity(0.3)])
     }
 
     private func barrel(_ c: inout GraphicsContext, scale s: Double, text: String, opening: Double) {
@@ -1342,7 +1293,7 @@ private struct HoneyHUD: View, Equatable {
     let onPause: () -> Void
 
     private var buttonSide: CGFloat { 120 * scale }
-    private var scorePotScale: CGFloat { 84 * scale / 154 }
+    private var scorePotScale: CGFloat { 67.2 * scale / 154 }
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.scale == rhs.scale && lhs.width == rhs.width && lhs.prompt == rhs.prompt && lhs.score == rhs.score && lhs.canPause == rhs.canPause
@@ -1405,7 +1356,7 @@ private struct HoneyHUD: View, Equatable {
 
             progressIndicator
         }
-        .padding(.horizontal, 18 * scale)
+        .padding(.horizontal, 26 * scale)
         .frame(height: buttonSide)
         .background(HoneyQuestionSign(showsHoney: false))
         .environment(\.layoutDirection, .leftToRight)
@@ -1453,37 +1404,118 @@ private struct HoneyAnswerAccessibility: View, Equatable {
     }
 }
 
+private enum HoneyForestArtwork {
+    static func oval(_ c: inout GraphicsContext, _ rect: CGRect, _ colors: [Color]) {
+        c.fill(Path(ellipseIn: rect), with: .linearGradient(Gradient(colors: colors),
+            startPoint: rect.origin, endPoint: CGPoint(x: rect.maxX, y: rect.maxY)))
+    }
+    static func leaf(_ c: inout GraphicsContext, at p: CGPoint, length: Double, angle: Double, light: Bool) {
+        var context = c
+        context.translateBy(x: p.x, y: p.y); context.rotate(by: .radians(angle))
+        var shape = Path(); shape.move(to: .zero)
+        shape.addQuadCurve(to: CGPoint(x: 0, y: -length), control: CGPoint(x: -length * 0.52, y: -length * 0.68))
+        shape.addQuadCurve(to: .zero, control: CGPoint(x: length * 0.48, y: -length * 0.35))
+        context.fill(shape, with: .linearGradient(Gradient(colors: light ? [
+            Color(red: 0.68, green: 0.80, blue: 0.21), Color(red: 0.28, green: 0.56, blue: 0.12)] : [
+            Color(red: 0.37, green: 0.66, blue: 0.18), Color(red: 0.10, green: 0.37, blue: 0.15)]),
+            startPoint: CGPoint(x: -5, y: -length), endPoint: .zero))
+        var vein = Path(); vein.move(to: .zero); vein.addLine(to: CGPoint(x: 0, y: -length * 0.8))
+        context.stroke(vein, with: .color(Color(red: 0.79, green: 0.85, blue: 0.40).opacity(0.35)), lineWidth: max(0.7, length * 0.04))
+    }
+    static func flower(_ c: inout GraphicsContext, at p: CGPoint, radius: Double) {
+        oval(&c, CGRect(x: p.x - radius, y: p.y - radius * 0.5, width: radius * 2.2, height: radius * 1.6),
+             [Color(red: 0.07, green: 0.29, blue: 0.10).opacity(0.45), .clear])
+        for i in 0..<6 {
+            let angle = Double(i) / 6 * .pi * 2
+            var petal = c
+            petal.translateBy(x: p.x + cos(angle) * radius * 0.50, y: p.y + sin(angle) * radius * 0.50)
+            petal.rotate(by: .radians(angle))
+            oval(&petal, CGRect(x: -radius * 0.24, y: -radius * 0.28, width: radius * 0.82, height: radius * 0.56),
+                [Color(red: 1, green: 0.99, blue: 0.91), Color(red: 0.88, green: 0.90, blue: 0.69)])
+        }
+        oval(&c, CGRect(x: p.x - radius * 0.25, y: p.y - radius * 0.25, width: radius * 0.5, height: radius * 0.5),
+            [Color(red: 1, green: 0.84, blue: 0.14), Color(red: 0.91, green: 0.49, blue: 0.02)])
+    }
+    static func stone(_ c: inout GraphicsContext, _ rect: CGRect, variant: Int) {
+        var rock = Path()
+        rock.move(to: CGPoint(x: rect.minX + rect.width * 0.13, y: rect.maxY - rect.height * 0.06))
+        rock.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.35),
+            control: CGPoint(x: rect.minX - rect.width * 0.04, y: rect.maxY - rect.height * 0.25))
+        rock.addQuadCurve(to: CGPoint(x: rect.minX + rect.width * 0.20, y: rect.minY + rect.height * 0.04),
+            control: CGPoint(x: rect.minX + rect.width * 0.02, y: rect.minY))
+        rock.addLine(to: CGPoint(x: rect.minX + rect.width * 0.75, y: rect.minY))
+        rock.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + rect.height * 0.22),
+            control: CGPoint(x: rect.maxX - rect.width * 0.04, y: rect.minY - rect.height * 0.025))
+        rock.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.02, y: rect.maxY - rect.height * 0.17))
+        rock.addQuadCurve(to: CGPoint(x: rect.minX + rect.width * 0.76, y: rect.maxY),
+            control: CGPoint(x: rect.maxX, y: rect.maxY))
+        rock.closeSubpath()
+        let shift = Double(variant % 3) * 0.035
+        c.fill(rock, with: .linearGradient(Gradient(colors: [
+            Color(red: 0.80 + shift, green: 0.73 + shift, blue: 0.53 + shift),
+            Color(red: 0.53 + shift, green: 0.44 + shift, blue: 0.30),
+            Color(red: 0.36, green: 0.31, blue: 0.22)]),
+            startPoint: rect.origin, endPoint: CGPoint(x: rect.maxX, y: rect.maxY)))
+        var bevel = Path()
+        bevel.move(to: CGPoint(x: rect.minX + rect.width * 0.04, y: rect.minY + rect.height * 0.38))
+        bevel.addQuadCurve(to: CGPoint(x: rect.minX + rect.width * 0.22, y: rect.minY + rect.height * 0.07),
+            control: CGPoint(x: rect.minX + rect.width * 0.06, y: rect.minY + rect.height * 0.06))
+        bevel.addLine(to: CGPoint(x: rect.minX + rect.width * 0.70, y: rect.minY + rect.height * 0.05))
+        c.stroke(bevel, with: .color(Color(red: 0.98, green: 0.88, blue: 0.65).opacity(0.6)),
+            style: StrokeStyle(lineWidth: max(1, rect.height * 0.045), lineCap: .round))
+        var crack = Path()
+        crack.move(to: CGPoint(x: rect.minX + rect.width * 0.72, y: rect.minY + rect.height * 0.25))
+        crack.addLine(to: CGPoint(x: rect.minX + rect.width * 0.64, y: rect.minY + rect.height * 0.43))
+        crack.addLine(to: CGPoint(x: rect.minX + rect.width * 0.71, y: rect.minY + rect.height * 0.65))
+        c.stroke(crack, with: .color(Color(red: 0.25, green: 0.24, blue: 0.16).opacity(0.28)), lineWidth: max(0.8, rect.width * 0.012))
+    }
+}
+
 private struct HoneyTreeSymbol: View, Equatable {
     let variant: Int
     var body: some View {
         Canvas { c, _ in
-            let x = 115.0, y = 287.0
-            c.fill(Path(ellipseIn: CGRect(x: x - 85, y: y - 3, width: 170, height: 14)),
-                   with: .color(Color(red: 0.05, green: 0.24, blue: 0.09).opacity(0.5)))
-            let trunk = CGRect(x: x - 12, y: y - 160, width: 24, height: 163)
-            c.fill(Path(roundedRect: trunk, cornerRadius: 8), with: .color(Color(red: 0.49, green: 0.29, blue: 0.10)))
-            c.fill(Path(roundedRect: CGRect(x: x - 9, y: y - 158, width: 5, height: 145), cornerRadius: 2),
-                   with: .color(Color(red: 0.74, green: 0.48, blue: 0.22)))
-            for j in 0..<4 {
-                let rect = CGRect(x: x + Double(j % 3 - 1) * 45 - 53,
-                                  y: y - (220 + Double(j / 3) * 50), width: 110, height: 105)
-                c.fill(Path(ellipseIn: rect), with: .linearGradient(Gradient(colors: [
-                    Color(red: 0.48 + Double(variant) * 0.035, green: 0.76, blue: 0.17),
-                    Color(red: 0.08, green: 0.40 + Double(variant) * 0.018, blue: 0.14)]),
-                    startPoint: rect.origin, endPoint: CGPoint(x: rect.maxX, y: rect.maxY)))
-                c.fill(Path(ellipseIn: CGRect(x: rect.minX + 19, y: rect.minY + 12, width: 30, height: 18)),
-                       with: .color(.yellow.opacity(0.16)))
+            var context = c
+            let lean = Double(variant - 1) * 5
+            HoneyForestArtwork.oval(&context, CGRect(x: 27, y: 278, width: 180, height: 20),
+                [Color(red: 0.04, green: 0.19, blue: 0.08).opacity(0.65), .clear])
+            var trunk = Path()
+            trunk.move(to: CGPoint(x: 94, y: 290)); trunk.addLine(to: CGPoint(x: 111 + lean, y: 177))
+            trunk.addLine(to: CGPoint(x: 81, y: 135)); trunk.addLine(to: CGPoint(x: 93, y: 132))
+            trunk.addLine(to: CGPoint(x: 120 + lean, y: 156)); trunk.addLine(to: CGPoint(x: 143, y: 108))
+            trunk.addLine(to: CGPoint(x: 154, y: 108)); trunk.addLine(to: CGPoint(x: 130 + lean, y: 179))
+            trunk.addQuadCurve(to: CGPoint(x: 147, y: 291), control: CGPoint(x: 127, y: 262)); trunk.closeSubpath()
+            context.fill(trunk, with: .linearGradient(Gradient(colors: [
+                Color(red: 0.69, green: 0.44, blue: 0.20), Color(red: 0.37, green: 0.22, blue: 0.11),
+                Color(red: 0.25, green: 0.17, blue: 0.09)]),
+                startPoint: CGPoint(x: 95, y: 200), endPoint: CGPoint(x: 146, y: 235)))
+            var bark = Path()
+            bark.move(to: CGPoint(x: 107, y: 277)); bark.addQuadCurve(to: CGPoint(x: 120 + lean, y: 178), control: CGPoint(x: 119, y: 233))
+            context.stroke(bark, with: .color(Color(red: 0.85, green: 0.60, blue: 0.30).opacity(0.6)), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+            let clusters: [(Double, Double, Double)] = [
+                (59,119,49), (172,120,48), (111,153,52), (36,93,31), (194,85,31),
+                (71,63,48), (143,51,48), (117,27,26), (115,86,57), (55,126,34),
+                (164,107,42), (92,118,42), (83,67,35), (143,69,35)]
+            for (i, cluster) in clusters.enumerated() {
+                let (x, y, r) = cluster
+                let rect = CGRect(x: x - r, y: y - r * 0.75, width: r * 2, height: r * 1.65)
+                HoneyForestArtwork.oval(&context, rect, [
+                    Color(red: 0.43 + Double((i + variant) % 3) * 0.04, green: 0.64 + Double(variant) * 0.025, blue: 0.16),
+                    Color(red: 0.16, green: 0.43 + Double(variant) * 0.02, blue: 0.14),
+                    Color(red: 0.06, green: 0.29, blue: 0.13)])
+                for j in 0..<6 {
+                    let angle = Double(j) * 2.4 + Double(i + variant)
+                    let radius = r * (0.28 + Double(j % 3) * 0.17)
+                    let p = CGPoint(x: x + cos(angle) * radius, y: y + sin(angle) * radius * 0.55)
+                    HoneyForestArtwork.leaf(&context, at: p, length: 9 + Double(j % 3) * 3, angle: angle, light: j % 3 == 0)
+                }
             }
-            let bush = CGRect(x: x - 55, y: y - 15, width: 112, height: 25)
-            c.fill(Path(ellipseIn: bush), with: .linearGradient(Gradient(colors: [
-                Color(red: 0.26, green: 0.61, blue: 0.18), Color(red: 0.07, green: 0.35, blue: 0.12)]),
-                startPoint: bush.origin, endPoint: CGPoint(x: bush.maxX, y: bush.maxY)))
-            for j in 0..<3 {
-                c.fill(Path(ellipseIn: CGRect(x: x - 32 + Double(j) * 30, y: y - 13, width: 10, height: 9)),
-                       with: .color(.white))
-                c.fill(Path(ellipseIn: CGRect(x: x - 29 + Double(j) * 30, y: y - 10, width: 4, height: 4)),
-                       with: .color(.yellow))
+            for i in 0..<9 {
+                let p = CGPoint(x: 81 + Double(i) * 9, y: 290 + Double(i % 2) * 4)
+                HoneyForestArtwork.leaf(&context, at: p, length: 22 + Double(i % 3) * 5, angle: Double(i - 4) * 0.24, light: i % 3 == 0)
             }
+            HoneyForestArtwork.flower(&context, at: CGPoint(x: 94, y: 282), radius: 7)
+            HoneyForestArtwork.flower(&context, at: CGPoint(x: 146, y: 287), radius: 5)
         }
         .frame(width: 230, height: 300)
     }
@@ -1493,34 +1525,106 @@ private struct HoneyUnderbrushSymbol: View, Equatable {
     let variant: Int
     var body: some View {
         Canvas { c, _ in
-            let base = CGRect(x: 7, y: 84, width: 206, height: 26)
-            c.fill(Path(ellipseIn: base), with: .color(Color(red: 0.05, green: 0.27, blue: 0.07).opacity(0.5)))
-            for i in 0..<5 {
-                let rect = CGRect(x: 12 + Double(i) * 34, y: 43 + Double(i % 2) * 13,
-                                  width: 66, height: 53)
-                c.fill(Path(ellipseIn: rect), with: .linearGradient(Gradient(colors: [
-                    Color(red: 0.40, green: 0.69, blue: 0.12), Color(red: 0.09, green: 0.38, blue: 0.12)]),
-                    startPoint: rect.origin, endPoint: CGPoint(x: rect.maxX, y: rect.maxY)))
+            var context = c
+            HoneyForestArtwork.oval(&context, CGRect(x: 4, y: 87, width: 212, height: 24),
+                [Color(red: 0.03, green: 0.21, blue: 0.08).opacity(0.65), .clear])
+            for i in 0..<7 {
+                let rect = CGRect(x: 5 + Double(i) * 27, y: 52 + Double(i % 3) * 11, width: 52, height: 43)
+                HoneyForestArtwork.oval(&context, rect, [Color(red: 0.28, green: 0.51, blue: 0.13), Color(red: 0.07, green: 0.30, blue: 0.12)])
             }
-            if variant == 1 {
-                let rock = CGRect(x: 71, y: 56, width: 61, height: 40)
-                c.fill(Path(roundedRect: rock, cornerRadius: 15), with: .linearGradient(Gradient(colors: [
-                    Color(red: 0.79, green: 0.71, blue: 0.46), Color(red: 0.44, green: 0.42, blue: 0.25)]),
-                    startPoint: rock.origin, endPoint: CGPoint(x: rock.maxX, y: rock.maxY)))
+            HoneyForestArtwork.stone(&context, CGRect(x: variant == 0 ? 136 : 66, y: 69, width: 51, height: 34), variant: variant)
+            for i in 0..<24 {
+                let x = 19 + Double((i * 37 + variant * 19) % 181)
+                let y = 72 + Double((i * 17) % 31)
+                HoneyForestArtwork.leaf(&context, at: CGPoint(x: x, y: y), length: 20 + Double(i % 4) * 5,
+                    angle: Double(i % 7 - 3) * 0.30, light: i % 4 == 0)
             }
-            for i in 0..<5 {
-                let x = 30 + Double(i) * 36
-                let y = 55 + Double((i + variant) % 3) * 16
-                for petal in 0..<5 {
-                    let angle = Double(petal) / 5 * .pi * 2
-                    c.fill(Path(ellipseIn: CGRect(x: x + cos(angle) * 7 - 5,
-                                                 y: y + sin(angle) * 7 - 5, width: 10, height: 10)),
-                           with: .color(.white.opacity(0.95)))
-                }
-                c.fill(Path(ellipseIn: CGRect(x: x - 4, y: y - 4, width: 8, height: 8)), with: .color(.yellow))
+            for i in 0..<4 {
+                let x = 33 + Double(i) * 44 + Double(variant) * 4
+                let y = 64 + Double((i + variant) % 3) * 12
+                HoneyForestArtwork.flower(&context, at: CGPoint(x: x, y: y), radius: 10 + Double(i % 2) * 2)
             }
         }
         .frame(width: 220, height: 112)
+    }
+}
+
+private struct HoneyCliffSymbol: View, Equatable {
+    let variant: Int
+    var body: some View {
+        Canvas { c, _ in
+            var context = c
+            HoneyForestArtwork.oval(&context, CGRect(x: 15, y: 301, width: 330, height: 28),
+                [Color(red: 0.02, green: 0.18, blue: 0.09).opacity(0.7), .clear])
+            // An irregular stepped outcrop, with visible stone joints and moss.
+            let stones: [CGRect] = [
+                CGRect(x: 22, y: 241, width: 125, height: 77), CGRect(x: 134, y: 246, width: 135, height: 72),
+                CGRect(x: 253, y: 244, width: 79, height: 66), CGRect(x: 35, y: 168, width: 108, height: 83),
+                CGRect(x: 135, y: 164, width: 113, height: 88), CGRect(x: 236, y: 173, width: 78, height: 82),
+                CGRect(x: 61, y: 91, width: 117, height: 87), CGRect(x: 168, y: 83, width: 115, height: 92),
+                CGRect(x: 94, y: 32, width: 91, height: 64), CGRect(x: 174, y: 22, width: 83, height: 69)]
+            for (i, rect) in stones.enumerated() { HoneyForestArtwork.stone(&context, rect, variant: i + variant) }
+            for i in 0..<26 {
+                let x = 38 + Double((i * 43 + variant * 23) % 277)
+                let y = i < 12 ? 313.0 : 177 + Double((i * 19) % 110)
+                HoneyForestArtwork.leaf(&context, at: CGPoint(x: x, y: y), length: 16 + Double(i % 3) * 8,
+                    angle: Double(i % 5 - 2) * 0.42, light: i % 3 == 0)
+            }
+            if variant == 0 {
+                // A broad fall is fed by a honey-covered ledge, rather than
+                // isolated tubes with floating circular caps.
+                var cascade = Path()
+                cascade.move(to: CGPoint(x: 150, y: 46))
+                cascade.addCurve(to: CGPoint(x: 155, y: 166), control1: CGPoint(x: 142, y: 82), control2: CGPoint(x: 164, y: 117))
+                cascade.addCurve(to: CGPoint(x: 159, y: 293), control1: CGPoint(x: 146, y: 222), control2: CGPoint(x: 174, y: 257))
+                cascade.addQuadCurve(to: CGPoint(x: 223, y: 300), control: CGPoint(x: 182, y: 312))
+                cascade.addCurve(to: CGPoint(x: 213, y: 169), control1: CGPoint(x: 209, y: 267), control2: CGPoint(x: 224, y: 218))
+                cascade.addCurve(to: CGPoint(x: 220, y: 42), control1: CGPoint(x: 201, y: 111), control2: CGPoint(x: 226, y: 75))
+                cascade.closeSubpath()
+                context.fill(cascade.offsetBy(dx: 6, dy: 4), with: .color(Color(red: 0.35, green: 0.23, blue: 0.08).opacity(0.5)))
+                context.fill(cascade, with: .linearGradient(Gradient(colors: [
+                    Color(red: 1, green: 0.95, blue: 0.49), Color(red: 1, green: 0.77, blue: 0.05),
+                    Color(red: 0.95, green: 0.53, blue: 0.01)]),
+                    startPoint: CGPoint(x: 150, y: 150), endPoint: CGPoint(x: 223, y: 185)))
+                for i in 0..<4 {
+                    let x = 162 + Double(i) * 13
+                    var streak = Path(); streak.move(to: CGPoint(x: x, y: 55 + Double(i % 2) * 21))
+                    streak.addCurve(to: CGPoint(x: x + 3, y: 291 - Double(i % 3) * 13),
+                        control1: CGPoint(x: x - 9, y: 134), control2: CGPoint(x: x + 12, y: 224))
+                    context.stroke(streak, with: .color(Color(red: 1, green: 0.98, blue: 0.76).opacity(i % 2 == 0 ? 0.85 : 0.4)),
+                        style: StrokeStyle(lineWidth: i == 0 ? 5 : 2.5, lineCap: .round))
+                }
+                var ledge = Path(); ledge.move(to: CGPoint(x: 100, y: 32))
+                ledge.addCurve(to: CGPoint(x: 253, y: 34), control1: CGPoint(x: 125, y: 21), control2: CGPoint(x: 220, y: 25))
+                ledge.addQuadCurve(to: CGPoint(x: 245, y: 56), control: CGPoint(x: 266, y: 48))
+                ledge.addCurve(to: CGPoint(x: 104, y: 52), control1: CGPoint(x: 209, y: 44), control2: CGPoint(x: 135, y: 66))
+                ledge.addQuadCurve(to: CGPoint(x: 100, y: 32), control: CGPoint(x: 85, y: 45)); ledge.closeSubpath()
+                context.fill(ledge, with: .linearGradient(Gradient(colors: [.yellow, Color(red: 1, green: 0.66, blue: 0.02)]),
+                    startPoint: CGPoint(x: 100, y: 27), endPoint: CGPoint(x: 130, y: 61)))
+                var gloss = Path(); gloss.move(to: CGPoint(x: 113, y: 33))
+                gloss.addQuadCurve(to: CGPoint(x: 236, y: 35), control: CGPoint(x: 180, y: 26))
+                context.stroke(gloss, with: .color(.white.opacity(0.85)), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                HoneyForestArtwork.oval(&context, CGRect(x: 121, y: 291, width: 143, height: 25), [Color(red: 1, green: 0.84, blue: 0.14), Color(red: 0.97, green: 0.57, blue: 0.035)])
+                for i in 0..<7 {
+                    HoneyForestArtwork.oval(&context, CGRect(x: 136 + Double(i) * 16, y: 295 + Double(i % 2) * 6, width: 18, height: 3), [.white.opacity(0.85), .yellow.opacity(0.1)])
+                }
+            } else {
+                for i in 0..<18 {
+                    let p = CGPoint(x: 82 + Double(i * 31 % 196), y: 94 + Double(i * 17 % 155))
+                    HoneyForestArtwork.leaf(&context, at: p, length: 24 + Double(i % 3) * 7,
+                        angle: Double(i % 5 - 2) * 0.36, light: i % 4 == 0)
+                }
+            }
+            for i in 0..<13 {
+                let x = 107 + Double(i) * 11
+                HoneyForestArtwork.leaf(&context, at: CGPoint(x: x, y: 30 + Double(i % 3) * 5), length: 23 + Double(i % 3) * 6,
+                    angle: Double(i % 5 - 2) * 0.36, light: i % 3 == 0)
+            }
+            for p in [CGPoint(x: 58, y: 281), CGPoint(x: 279, y: 291), CGPoint(x: 177, y: 20)] {
+                HoneyForestArtwork.flower(&context, at: p, radius: 9)
+            }
+        }
+        .frame(width: 360, height: 330)
     }
 }
 
