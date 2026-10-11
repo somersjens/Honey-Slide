@@ -69,7 +69,7 @@ struct ResultView: View {
 
     var body: some View {
         ZStack {
-            SpaceModalBackdrop(accent: character.color,
+            HoneyModalBackdrop(accent: character.color,
                                opacity: backdropPresented ? 0.82 : 0)
                 .animation(.easeInOut(duration: 0.42), value: backdropPresented)
 
@@ -78,7 +78,7 @@ struct ResultView: View {
                     card
                         .padding(22 * scale)
                         .frame(maxWidth: isPad ? 820 : 700)
-                        .spaceMenuPanel(accent: character.color,
+                        .honeyMenuPanel(accent: character.color,
                                         cornerRadius: 28,
                                         prominent: true)
                         .padding(24)
@@ -189,7 +189,7 @@ struct ResultView: View {
         // enlarged to let the outstretched arms reach just beyond the
         // decorative ring instead of leaving the character looking tiny.
         return ZStack {
-            SpaceOrbitHalo(accent: character.color, diameter: heroSize)
+            HoneyGlowHalo(accent: character.color, diameter: heroSize)
             CharacterPortrait(character: character,
                               side: heroSize * 0.9,
                               magnification: 1.02)
@@ -198,10 +198,10 @@ struct ResultView: View {
         .accessibilityHidden(true)
     }
 
-    /// The level-based description, flanked by small star ornaments.
+    /// The level-based description, flanked by small honey drops.
     private var encouragementRow: some View {
         HStack(spacing: 6 * scale) {
-            starOrnament
+            honeyOrnament
             Text(verbatim: encouragement)
                 .font(.system(size: (isCompleted ? 13 : 14) * textScale,
                               weight: isCompleted ? .medium : .semibold))
@@ -209,15 +209,16 @@ struct ResultView: View {
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
-            starOrnament
+            honeyOrnament.scaleEffect(x: -1, y: 1)
         }
         .frame(minHeight: 20 * scale)
     }
 
-    private var starOrnament: some View {
-        Image(systemName: "star.fill")
+    private var honeyOrnament: some View {
+        Image(systemName: "drop.fill")
             .font(.system(size: 10 * textScale, weight: .semibold))
-            .foregroundStyle(character.color.opacity(0.5))
+            .foregroundStyle(HoneyMenuPalette.honey.opacity(0.85))
+            .rotationEffect(.degrees(18))
     }
 
     /// The one line in the app whose word order is fixed by its layout: the

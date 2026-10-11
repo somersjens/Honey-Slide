@@ -136,7 +136,7 @@ struct PremiumView: View {
     var body: some View {
         let _ = totalCards
         ZStack(alignment: .top) {
-            SpaceMenuBackground(accent: character.color)
+            HoneyMenuBackground(accent: character.color)
 
             GeometryReader { proxy in
                 let container = clippedWidth > 1
@@ -180,7 +180,7 @@ struct PremiumView: View {
                         characterStrip(metrics, columns: castColumns)
                     }
                     .padding(metrics.cardPadding)
-                    .spaceMenuPanel(accent: character.color,
+                    .honeyMenuPanel(accent: character.color,
                                     cornerRadius: 28,
                                     prominent: true)
                     .padding(AppLayout.landscapeGutter)
@@ -300,7 +300,7 @@ struct PremiumView: View {
             ZStack {
                 // A fresh halo per character. Animating the same strokes into
                 // the next colour lifts them above the portrait for a frame.
-                SpaceOrbitHalo(accent: character.color, diameter: heroSize)
+                HoneyGlowHalo(accent: character.color, diameter: heroSize)
                     .id(previewCharacterID)
                     .transition(.identity)
                     .animation(nil, value: previewCharacterID)
@@ -458,7 +458,7 @@ struct PremiumView: View {
         .padding(metrics.stripPadding)
         .background(
             LinearGradient(colors: [Color.white.opacity(0.48),
-                                    SpaceMenuPalette.starlight.opacity(0.22)],
+                                    HoneyMenuPalette.gloss.opacity(0.55)],
                            startPoint: .top,
                            endPoint: .bottom),
             in: RoundedRectangle(cornerRadius: 22, style: .continuous)
@@ -835,7 +835,7 @@ struct PremiumView: View {
                                     if index.isMultiple(of: 4) {
                                         CurrencyIcon(size: CGFloat(11 + (index % 3) * 3) * scale)
                                     } else {
-                                        Image(systemName: "sparkle")
+                                        Image(systemName: "drop.fill")
                                             .font(.system(
                                                 size: CGFloat(11 + (index % 3) * 3) * scale,
                                                 weight: .bold
@@ -846,7 +846,7 @@ struct PremiumView: View {
                                         index.isMultiple(of: 4) ? animal.deepColor : animal.color
                                     )
                                     // Cancel the ring's rotation on each glyph so
-                                    // the cards and sparkles keep orbiting but stay
+                                    // the pots and drops keep circling but stay
                                     // upright rather than tumbling.
                                     .rotationEffect(.degrees(-unlockBurstRotation))
                                     .offset(

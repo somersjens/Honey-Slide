@@ -540,7 +540,7 @@ struct LevelCardView: View {
 
     /// A level that crosses its maximum on this return stays in its ordinary
     /// card until the bubbles have finished counting. Only then do the gold
-    /// card, crown and planets arrive together.
+    /// card, crown and honeycombs arrive together.
     private var isNewMaximumCelebration: Bool {
         celebrationStartedAt != nil && (celebrationStart ?? best) < maximum && best >= maximum
     }
@@ -627,14 +627,13 @@ struct LevelCardView: View {
         }
         .background(cardFill, in: RoundedRectangle(cornerRadius: 18 * cardScale))
         .overlay(alignment: .bottomTrailing) {
-            // A quiet orbit line keeps every level tile in the same visual
-            // world as the large menu panels without competing with its score.
-            Ellipse()
-                .stroke(theme.color.opacity(displayedBest == 0 ? 0.10 : 0.16),
+            // A quiet comb keeps every level tile in the same visual world as
+            // the large menu panels without competing with its score.
+            HoneycombCell()
+                .stroke(theme.color.opacity(displayedBest == 0 ? 0.12 : 0.20),
                         lineWidth: max(1, cardScale))
-                .frame(width: 82 * cardScale, height: 28 * cardScale)
-                .rotationEffect(.degrees(-18))
-                .offset(x: 24 * cardScale, y: 10 * cardScale)
+                .frame(width: 30 * cardScale, height: 30 * cardScale)
+                .offset(x: 8 * cardScale, y: 8 * cardScale)
                 .allowsHitTesting(false)
         }
         .clipShape(RoundedRectangle(cornerRadius: 18 * cardScale))
@@ -649,7 +648,7 @@ struct LevelCardView: View {
     private var cardFill: LinearGradient {
         LinearGradient(
             colors: displayedBest == 0
-                ? [Color.white.opacity(0.76), SpaceMenuPalette.starlight.opacity(0.48)]
+                ? [Color.white.opacity(0.82), HoneyMenuPalette.gloss.opacity(0.72)]
                 : [Color.white, theme.skyColor.opacity(0.92)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -873,7 +872,7 @@ struct LevelCardView: View {
                 .stroke(metal, lineWidth: 2.5 * cardScale)
         )
         .overlay {
-            completedPlanets(color: hero)
+            completedCombs(color: hero)
         }
         .overlay(alignment: .top) {
             completedRibbon(fill: hero, crown: metal)
@@ -882,23 +881,23 @@ struct LevelCardView: View {
         .shadow(color: metal.opacity(0.35), radius: 6, y: 3)
     }
 
-    /// One ringed planet on each side of a maxed level, mirrored so the pair
-    /// stays symmetrical. On a wide card they sit beside the number instead of
+    /// One honeycomb on each side of a maxed level, mirrored so the pair stays
+    /// symmetrical. On a wide card they sit beside the number instead of
     /// against the border, and a little below centre so the crown above them
     /// does not pull the card top-heavy.
-    private func completedPlanets(color: Color) -> some View {
+    private func completedCombs(color: Color) -> some View {
         let side = 36 * 1.2 * cardScale
-        // Two digits, plus a gap so the rings do not touch the numeral.
+        // Two digits, plus a gap so the drips do not touch the numeral.
         let preferredLane = 54 * cardScale
         return GeometryReader { proxy in
             let lane = min(preferredLane, max(0, proxy.size.width - side * 2))
             HStack(spacing: 0) {
-                CompletionPlanet(color: color, revealStartedAt: planetRevealStartedAt)
+                CompletionHoneycomb(color: color, revealStartedAt: combRevealStartedAt)
                     .frame(width: side, height: side)
 
                 Color.clear.frame(width: lane)
 
-                CompletionPlanet(color: color, revealStartedAt: planetRevealStartedAt)
+                CompletionHoneycomb(color: color, revealStartedAt: combRevealStartedAt)
                     .frame(width: side, height: side)
                     .scaleEffect(x: -1, y: 1)
             }
@@ -910,9 +909,9 @@ struct LevelCardView: View {
     }
 
     /// The completed card is inserted at this exact instant. Giving both
-    /// planets the shared timestamp keeps them synchronized even when
+    /// combs the shared timestamp keeps them synchronized even when
     /// SwiftUI creates one side a frame later than the other.
-    private var planetRevealStartedAt: Date? {
+    private var combRevealStartedAt: Date? {
         guard isNewMaximumCelebration, let celebrationStartedAt else { return nil }
         return celebrationStartedAt.addingTimeInterval(Self.scoreCountDelay + Self.scoreCountDuration)
     }
@@ -954,10 +953,9 @@ struct LevelCardView: View {
     }
 }
 
-/// The ringed planet beside a maxed level number. The opposite side is
-/// mirrored. The far half of the ring is drawn behind the disc, so it does
-/// not cross the face.
-private struct CompletionPlanet: View {
+/// The honeycomb beside a maxed level number. The opposite side is mirrored.
+/// A drip hangs under the cell, and both stay inside the card.
+private struct CompletionHoneycomb: View {
     let color: Color
     /// Nil means this is an already-completed card and should render fully.
     let revealStartedAt: Date?
@@ -966,10 +964,10 @@ private struct CompletionPlanet: View {
     /// highlight instead of a second theme colour.
     private static let highlight = Color(red: 1.0, green: 0.96, blue: 0.85)
 
-    /// Room around the disc for the tilted ring.
-    private static let frameFactor: CGFloat = 1.9
+    /// Room under the cell for the drip.
+    private static let frameFactor: CGFloat = 1.7
 
-    /// The reveal lasts well under a second, after which the planet is still.
+    /// The reveal lasts well under a second, after which the comb is still.
     /// Left running, the timeline would wake every completed card at full rate
     /// for as long as the screen is up, including while a level is being played
     /// over it.
@@ -985,7 +983,7 @@ private struct CompletionPlanet: View {
             let progress = revealProgress(at: elapsed)
             GeometryReader { proxy in
                 let diameter = min(proxy.size.width, proxy.size.height) / Self.frameFactor
-                planet(diameter: diameter)
+                comb(diameter: diameter)
                     .scaleEffect(progress, anchor: .center)
                     .opacity(min(1, Double(progress)))
                     .frame(width: proxy.size.width, height: proxy.size.height)
@@ -1008,31 +1006,21 @@ private struct CompletionPlanet: View {
         }
     }
 
-    private func planet(diameter: CGFloat) -> some View {
+    private func comb(diameter: CGFloat) -> some View {
         ZStack {
-            ringHalf(diameter: diameter, front: false)
-            Circle()
+            HoneycombCell()
                 .fill(color)
-                .overlay(alignment: .topLeading) {
-                    Circle()
-                        .fill(Self.highlight)
-                        .frame(width: diameter * 0.28, height: diameter * 0.28)
-                        .offset(x: diameter * 0.16, y: diameter * 0.14)
-                }
-                .clipShape(Circle())
                 .frame(width: diameter, height: diameter)
-            ringHalf(diameter: diameter, front: true)
+                .offset(y: -diameter * 0.12)
+            HoneycombCell()
+                .fill(Self.highlight.opacity(0.85))
+                .frame(width: diameter * 0.34, height: diameter * 0.34)
+                .offset(x: -diameter * 0.08, y: -diameter * 0.24)
+            HoneyDrip()
+                .fill(color)
+                .frame(width: diameter * 0.22, height: diameter * 0.30)
+                .offset(y: diameter * 0.38)
         }
-    }
-
-    /// Far half first, near half after the disc. Both share the same tilt, so
-    /// the rear arc stays behind the planet instead of crossing its face.
-    private func ringHalf(diameter: CGFloat, front: Bool) -> some View {
-        RingArc(isFront: front)
-            .stroke(color, style: StrokeStyle(lineWidth: max(1.1, diameter * 0.10),
-                                              lineCap: .butt))
-            .frame(width: diameter * 1.55, height: diameter * 0.62)
-            .rotationEffect(.degrees(22))
     }
 
     private func revealProgress(at elapsed: TimeInterval) -> CGFloat {
@@ -1043,36 +1031,7 @@ private struct CompletionPlanet: View {
     }
 }
 
-/// One half of the ring, in the ring's own plane before it is tilted.
-/// The upper half is the far side; the lower half passes in front of the disc.
-private struct RingArc: Shape {
-    var isFront: Bool
-
-    func path(in rect: CGRect) -> Path {
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radiusX = rect.width / 2
-        let radiusY = rect.height / 2
-        // 0 is the right tip. The lower half runs through the bottom of the
-        // ellipse; the upper half is the far side of the ring.
-        let start = isFront ? 0.0 : Double.pi
-        let end = isFront ? Double.pi : Double.pi * 2
-        var path = Path()
-        let steps = 48
-        for step in 0...steps {
-            let t = start + (end - start) * Double(step) / Double(steps)
-            let point = CGPoint(x: center.x + radiusX * cos(t),
-                                y: center.y + radiusY * sin(t))
-            if step == 0 {
-                path.move(to: point)
-            } else {
-                path.addLine(to: point)
-            }
-        }
-        return path
-    }
-}
-
-/// The currency star, inset slightly inside its layout frame so it keeps a
+/// The honey pot, inset slightly inside its layout frame so it keeps a
 /// little breathing room at compact sizes.
 private struct LevelCardCurrencyIcon: View {
     let size: CGFloat

@@ -42,7 +42,9 @@ struct SettingsView: View {
                 .frame(maxWidth: AppLayout.landscapeContentWidth)
                 .frame(maxWidth: .infinity)
             }
-            .background(character.skyColor.ignoresSafeArea())
+            .background {
+                HoneyMenuBackground(accent: character.color)
+            }
             .navigationTitle("settings.title")
 #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)

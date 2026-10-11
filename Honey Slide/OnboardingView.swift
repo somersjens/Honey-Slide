@@ -72,7 +72,7 @@ struct OnboardingView: View {
                         }
                     }
                     .padding(panelInset)
-                    .spaceMenuPanel(accent: accent, cornerRadius: 30, prominent: true)
+                    .honeyMenuPanel(accent: accent, cornerRadius: 30, prominent: true)
                     .padding(.horizontal, horizontalPadding)
                     // Reserve the complete flag/back-button band. Long titles
                     // can wrap without ever sliding underneath either control.
@@ -84,7 +84,7 @@ struct OnboardingView: View {
                 .scrollBounceBehavior(.basedOnSize)
             }
         }
-        .foregroundStyle(SpaceMenuPalette.ink)
+        .foregroundStyle(HoneyMenuPalette.ink)
         .overlay(alignment: .top) {
             onboardingProgress
                 .padding(.top, isPad ? 30 : 17)
@@ -100,7 +100,7 @@ struct OnboardingView: View {
             }
         }
         .overlay(alignment: .topTrailing) {
-            LanguagePicker(tint: .white.opacity(0.88),
+            LanguagePicker(tint: HoneyMenuPalette.ink.opacity(0.62),
                            scale: isPad ? 1.25 : 1)
                 .padding(.top, isPad ? 20 : 8)
                 .padding(.trailing, isPad ? 28 : 16)
@@ -114,7 +114,7 @@ struct OnboardingView: View {
         let nameStepNudge: CGFloat = step == 0 ? side * 0.34 : 0
         let towardForm = onboardingCharacter.hangsOnLeadingSide ? nameStepNudge : -nameStepNudge
         return ZStack {
-            SpaceOrbitHalo(accent: accent, diameter: side)
+            HoneyGlowHalo(accent: accent, diameter: side)
             CharacterPortrait(character: onboardingCharacter,
                               side: side * 0.9,
                               magnification: 1.02)
@@ -130,7 +130,7 @@ struct OnboardingView: View {
         } label: {
             Image(systemName: "chevron.backward")
                 .font(.system(size: isPad ? 26 : 22, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.88))
+                .foregroundStyle(HoneyMenuPalette.ink.opacity(0.72))
                 .padding(.horizontal, isPad ? 16 : 13)
                 .padding(.vertical, isPad ? 11 : 8)
                 .liquidGlassCapsule()
@@ -139,16 +139,16 @@ struct OnboardingView: View {
     }
 
     private var onboardingBackground: some View {
-        SpaceMenuBackground(accent: accent)
+        HoneyMenuBackground(accent: accent)
     }
 
-    /// A compact mission-progress rail that makes the three welcome pages read
-    /// as one launch sequence without adding new localized copy.
+    /// A compact progress rail for the three welcome pages. It adds no new
+    /// localized copy.
     private var onboardingProgress: some View {
         HStack(spacing: isPad ? 9 : 7) {
             ForEach(0..<3, id: \.self) { index in
                 Capsule()
-                    .fill(index <= step ? accent : Color.white.opacity(0.28))
+                    .fill(index <= step ? accent : HoneyMenuPalette.comb.opacity(0.28))
                     .frame(width: index == step ? (isPad ? 36 : 28) : (isPad ? 12 : 9),
                            height: isPad ? 8 : 6)
                     .shadow(color: index == step ? accent.opacity(0.7) : .clear,
@@ -157,8 +157,8 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, isPad ? 16 : 13)
         .padding(.vertical, isPad ? 10 : 8)
-        .background(SpaceMenuPalette.void.opacity(0.62), in: Capsule())
-        .overlay(Capsule().stroke(.white.opacity(0.22), lineWidth: 1))
+        .background(.white.opacity(0.72), in: Capsule())
+        .overlay(Capsule().stroke(HoneyMenuPalette.honey.opacity(0.70), lineWidth: 1))
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: step)
     }
 
@@ -536,7 +536,7 @@ private struct OnboardingChoiceLabel: View {
                 .stroke(accent.opacity(isSelected ? 0.95 : 0.24),
                         lineWidth: isSelected ? 2.5 : 1.25)
         )
-        .foregroundStyle(SpaceMenuPalette.ink)
+        .foregroundStyle(HoneyMenuPalette.ink)
         .animation(.easeInOut(duration: 0.18), value: isSelected)
     }
 }

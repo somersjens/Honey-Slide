@@ -148,7 +148,7 @@ struct LevelIntroCard: View {
         ]
 
         return ZStack {
-            SpaceModalBackdrop(accent: theme.color)
+            HoneyModalBackdrop(accent: theme.color)
 
             GeometryReader { proxy in
                 ScrollView {
@@ -194,7 +194,7 @@ struct LevelIntroCard: View {
                     }
                     .padding(24 * scale)
                     .frame(maxWidth: isPad ? 900 : 760)
-                    .spaceMenuPanel(accent: theme.color,
+                    .honeyMenuPanel(accent: theme.color,
                                     cornerRadius: 28,
                                     prominent: true)
                     .padding(AppLayout.landscapeGutter)
@@ -329,7 +329,7 @@ struct LevelIntroCard: View {
 
     private var characterPortrait: some View {
         ZStack {
-            SpaceOrbitHalo(accent: theme.color, diameter: portraitSize)
+            HoneyGlowHalo(accent: theme.color, diameter: portraitSize)
             CharacterPortrait(character: theme,
                               side: portraitSize * 0.9,
                               magnification: 1.02)
@@ -454,7 +454,7 @@ struct LevelIntroCard: View {
         .padding(.vertical, 6 * scale)
         .background(
             LinearGradient(colors: [theme.skyColor.opacity(0.58),
-                                    SpaceMenuPalette.starlight.opacity(0.22)],
+                                    HoneyMenuPalette.gloss.opacity(0.55)],
                            startPoint: .leading,
                            endPoint: .trailing),
             in: RoundedRectangle(cornerRadius: 16, style: .continuous)

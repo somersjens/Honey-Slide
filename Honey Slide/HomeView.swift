@@ -29,7 +29,7 @@ private struct ScoreCelebration: Identifiable {
     let topicStart: Int
     let totalStart: Int
     /// True only when this session turned an unfinished board into a maxed one.
-    /// That inserts the planet-and-crown reveal before its bubble flies away.
+    /// That inserts the honeycomb-and-crown reveal before its bubble flies away.
     let revealsMaximum: Bool
     let id = UUID()
     /// Stamped when the celebration actually becomes visible, not when it was
@@ -240,7 +240,7 @@ struct HomeView: View {
 
     var body: some View {
         ZStack {
-            SpaceMenuBackground(accent: character.color)
+            HoneyMenuBackground(accent: character.color)
 
             GeometryReader { proxy in
                 let canvas = menuCanvas(for: proxy.size.width)
@@ -391,7 +391,7 @@ struct HomeView: View {
             .frame(maxWidth: .infinity)
         }
         .padding(menuCardPadding)
-        .spaceMenuPanel(accent: character.color, cornerRadius: 24, prominent: true)
+        .honeyMenuPanel(accent: character.color, cornerRadius: 24, prominent: true)
     }
 
     /// The player side is exactly as tall as the two rows of controls across the
@@ -442,7 +442,7 @@ struct HomeView: View {
     private var characterButton: some View {
         let box = characterBox
         return ZStack {
-            SpaceOrbitHalo(accent: character.color, diameter: box)
+            HoneyGlowHalo(accent: character.color, diameter: box)
             CharacterPortrait(character: character,
                               side: box * 0.9,
                               magnification: 1.02)
@@ -1058,7 +1058,7 @@ struct HomeView: View {
     private static var cardSettleDelay: Double {
         LevelCardView.scoreCountDelay + LevelCardView.scoreCountDuration + 0.1
     }
-    /// Gives the springing max card, planets and crown a clear beat on screen
+    /// Gives the springing max card, honeycombs and crown a clear beat on screen
     /// before the reward bubble starts its flight to the topic total.
     private static let maximumRevealPause = 0.9
     private static let flightDuration = 0.62
