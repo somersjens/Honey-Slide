@@ -47,8 +47,8 @@ struct HoneySlidePlayfield: View {
                     Spacer()
                 }
                 .foregroundStyle(.white)
-                .padding(.leading, proxy.safeAreaInsets.leading + max(16, 58 * scale))
-                .padding(.trailing, proxy.safeAreaInsets.trailing + max(16, 58 * scale))
+                .padding(.leading, max(proxy.safeAreaInsets.leading, max(12, 22 * scale)))
+                .padding(.trailing, max(proxy.safeAreaInsets.trailing, max(12, 22 * scale)))
                 .padding(.top, proxy.safeAreaInsets.top + max(10, 32 * scale))
                 .padding(.bottom, max(proxy.safeAreaInsets.bottom, 34 * scale))
             }
@@ -89,6 +89,8 @@ struct HoneySlidePlayfield: View {
     private func hud(scale: CGFloat, width: CGFloat) -> some View {
         HoneyHUD(scale: scale, width: width, prompt: displayedPrompt,
                  score: displayedHoney,
+                 questionNumber: min(model.totalQuestions, max(1, model.round?.number ?? model.visibleRounds.first?.number ?? model.roundNumber)),
+                 totalQuestions: model.totalQuestions,
                  canPause: !model.isGameOver,
                  penaltyProgress: simulation.penaltyProgress.map { _ in 0 },
                  showsFeedback: simulation.feedbackRemaining > 0 && !simulation.lastWasCorrect,
@@ -965,9 +967,11 @@ enum HoneyPotArtwork {
     static let darkWood = Color(red: 0.29, green: 0.12, blue: 0.025)
     static let warmWood = Color(red: 0.77, green: 0.40, blue: 0.10)
 
-    static func base(_ c: inout GraphicsContext) {
-        ellipse(&c, CGRect(x: -77, y: -3, width: 154, height: 25),
-                [darkWood.opacity(0.38), .orange.opacity(0)])
+    static func base(_ c: inout GraphicsContext, showsShadow: Bool = true) {
+        if showsShadow {
+            ellipse(&c, CGRect(x: -77, y: -3, width: 154, height: 25),
+                    [darkWood.opacity(0.38), .orange.opacity(0)])
+        }
         ellipse(&c, CGRect(x: -58, y: -16, width: 116, height: 29), [warmWood, darkWood])
         // Bulging staves, elliptical hoops and a recessed face give the pot
         // volume. The bright left shoulder and dark right side stay consistent.
@@ -1207,16 +1211,17 @@ private struct HoneyClosedPotSymbol: View, Equatable {
     }
 }
 
-/// Sculpted artwork for the playfield, its score counter and pot collection.
+/// Shared pot artwork for the playfield, score counter and currency silhouette.
 struct HoneyPotIllustration: View, Equatable {
     var text: String? = nil
+    var showsShadow = true
     var body: some View {
         Canvas { context, size in
             var c = context
             let scale = min(size.width / 154, size.height / 166)
             c.translateBy(x: size.width / 2, y: (size.height - 166 * scale) / 2 + 144 * scale)
             c.scaleBy(x: scale, y: scale)
-            HoneyPotArtwork.base(&c)
+            HoneyPotArtwork.base(&c, showsShadow: showsShadow)
             HoneyPotArtwork.face(&c, text: text)
             HoneyPotArtwork.crown(&c)
         }
@@ -1328,14 +1333,20 @@ private struct HoneyHUD: View, Equatable {
     let width: CGFloat
     let prompt: String
     let score: Int
+    let questionNumber: Int
+    let totalQuestions: Int
     let canPause: Bool
     let penaltyProgress: Double?
     let showsFeedback: Bool
     let missedChallenge: String
     let onPause: () -> Void
 
+    private var buttonSide: CGFloat { 120 * scale }
+    private var scorePotScale: CGFloat { 84 * scale / 154 }
+
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.scale == rhs.scale && lhs.width == rhs.width && lhs.prompt == rhs.prompt && lhs.score == rhs.score && lhs.canPause == rhs.canPause
+            && lhs.questionNumber == rhs.questionNumber && lhs.totalQuestions == rhs.totalQuestions
             && lhs.penaltyProgress == rhs.penaltyProgress && lhs.showsFeedback == rhs.showsFeedback
             && lhs.missedChallenge == rhs.missedChallenge
     }
@@ -1346,7 +1357,7 @@ private struct HoneyHUD: View, Equatable {
                 Button(action: onPause) {
                     Image(systemName: "pause.fill")
                         .font(.system(size: 44 * scale, weight: .black))
-                        .frame(width: 120 * scale, height: 120 * scale)
+                        .frame(width: buttonSide, height: buttonSide)
                         .foregroundStyle(Color(red: 0.25, green: 0.10, blue: 0.03))
                         .background(HoneyQuestionSign(showsHoney: false))
                         .shadow(color: .brown.opacity(0.35), radius: 0, y: 6 * scale)
@@ -1355,26 +1366,7 @@ private struct HoneyHUD: View, Equatable {
                 .disabled(!canPause)
                 .accessibilityLabel(L(key: "honey.pause"))
                 Spacer()
-                HStack(spacing: 10 * scale) {
-                    HoneyPotIllustration()
-                        .frame(width: 71 * scale, height: 71 * 166 / 154 * scale)
-                        .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(score: $0) }
-                    Text("\(score)").monospacedDigit()
-                        .font(.system(size: 48 * scale, weight: .black, design: .rounded))
-                        // Only two digits are reserved. The red −1 occupies
-                        // this exact position, then exposes the updated score.
-                        .frame(width: 64 * scale)
-                        .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(penalty: $0) }
-                        .opacity(penaltyProgress == nil ? 1 : 0)
-                }
-                .padding(.horizontal, 18 * scale)
-                .frame(height: 120 * scale)
-                .foregroundStyle(Color(red: 0.25, green: 0.10, blue: 0.03))
-                .background(HoneyQuestionSign(showsHoney: false))
-                .shadow(color: .brown.opacity(0.3), radius: 0, y: 5 * scale)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(Currency.name) \(score)")
-                .accessibilityIdentifier("honey-score")
+                scorePanel
             }
             VStack(spacing: 9 * scale) {
                 Text(prompt)
@@ -1393,6 +1385,49 @@ private struct HoneyHUD: View, Equatable {
                 }
             }
         }
+    }
+
+    private var scorePanel: some View {
+        HStack(spacing: 8 * scale) {
+            HoneyPotIllustration(text: penaltyProgress == nil ? "\(score)" : "", showsShadow: false)
+                .frame(width: 154 * scorePotScale, height: 166 * scorePotScale)
+                .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(score: $0) }
+                .overlay {
+                    // The penalty replaces the digit on the pot's face.
+                    Color.clear
+                        .frame(width: 86 * scorePotScale, height: 78 * scorePotScale)
+                        .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(penalty: $0) }
+                        .offset(y: 9 * scorePotScale)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(Currency.name) \(score)")
+                .accessibilityIdentifier("honey-score")
+
+            progressIndicator
+        }
+        .padding(.horizontal, 18 * scale)
+        .frame(height: buttonSide)
+        .background(HoneyQuestionSign(showsHoney: false))
+        .environment(\.layoutDirection, .leftToRight)
+    }
+
+    private var progressIndicator: some View {
+        VStack(spacing: 3 * scale) {
+            Text(verbatim: "\(questionNumber)")
+                .font(.system(size: 30 * scale, weight: .black, design: .rounded))
+            Rectangle()
+                .fill(HoneyPotArtwork.darkWood.opacity(0.35))
+                .frame(width: 24 * scale, height: 2 * scale)
+            Text(verbatim: "\(totalQuestions)")
+                .font(.system(size: 22 * scale, weight: .bold, design: .rounded))
+                .opacity(0.8)
+        }
+        .monospacedDigit()
+        .foregroundStyle(Color(red: 0.25, green: 0.10, blue: 0.03))
+        .frame(width: 46 * scale, height: 82 * scale)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L("honey.progress \(questionNumber) \(totalQuestions)"))
+        .accessibilityIdentifier("honey-progress")
     }
 }
 

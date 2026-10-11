@@ -46,6 +46,7 @@ import AppKit
 import ImageIO
 import UniformTypeIdentifiers
 func L(key: String) -> String { key == "honey.pause" ? "Pauze" : "Antwoord" }
+func L(_ key: String.LocalizationValue) -> String { String(localized: key) }
 enum Currency { static let name = "Honey" }
 struct CurrencyIcon: View {
     let size: CGFloat
@@ -200,6 +201,10 @@ private struct BenchmarkScene: View {
     }
 }
 '''
+if "let questionNumber: Int" in source:
+    driver = driver.replace("score: score, canPause: true", "score: score, questionNumber: 5, totalQuestions: 20, canPause: true")
+if "private var scorePotScale: CGFloat" in source:
+    driver = driver.replace("(phone ? 59 : 0) + max(16, 58 * scale)", "max(phone ? 59 : 0, max(12, 22 * scale))")
 if "let rider: Image?" in source:
     start = driver.index("                HoneySlideWorld(simulation: simulation)")
     end = driver.index("                VStack {", start)

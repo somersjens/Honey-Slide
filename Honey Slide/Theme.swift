@@ -18,35 +18,15 @@ enum Currency {
     static let name = "Honey"
 }
 
-/// A simple, single-colour Honey glyph for menus, rewards and intro screens.
-/// The sculpted pot belongs to the playfield and its score counter.
+/// The playfield pot's exact silhouette, in the surrounding text colour.
 struct CurrencyIcon: View {
     let size: CGFloat
 
     var body: some View {
-        HoneyCurrencyGlyph()
+        Rectangle()
             .frame(width: size, height: size)
+            .mask { HoneyPotIllustration(showsShadow: false) }
             .accessibilityHidden(true)
-    }
-}
-
-/// A lid and a broad, rounded jar, filled with the surrounding text colour.
-/// This vector keeps menu currency legible even at small icon sizes.
-private struct HoneyCurrencyGlyph: Shape {
-    func path(in rect: CGRect) -> Path {
-        var p = Path()
-        p.addRoundedRect(in: CGRect(x: 24, y: 7, width: 52, height: 13), cornerSize: CGSize(width: 5, height: 5))
-        p.move(to: CGPoint(x: 30, y: 25))
-        p.addLine(to: CGPoint(x: 70, y: 25))
-        p.addCurve(to: CGPoint(x: 88, y: 56), control1: CGPoint(x: 71, y: 37), control2: CGPoint(x: 88, y: 38))
-        p.addCurve(to: CGPoint(x: 77, y: 91), control1: CGPoint(x: 91, y: 74), control2: CGPoint(x: 88, y: 89))
-        p.addQuadCurve(to: CGPoint(x: 23, y: 91), control: CGPoint(x: 50, y: 98))
-        p.addCurve(to: CGPoint(x: 12, y: 56), control1: CGPoint(x: 12, y: 89), control2: CGPoint(x: 9, y: 74))
-        p.addCurve(to: CGPoint(x: 30, y: 25), control1: CGPoint(x: 12, y: 38), control2: CGPoint(x: 29, y: 37))
-        p.closeSubpath()
-        let scale = min(rect.width, rect.height) / 100
-        return p.applying(CGAffineTransform(scaleX: scale, y: scale))
-            .offsetBy(dx: rect.midX - 50 * scale, dy: rect.midY - 50 * scale)
     }
 }
 
@@ -82,7 +62,7 @@ struct AnimalCharacter: Identifiable, Equatable {
         if let existing = UIImage(named: name) { return Image(uiImage: existing) }
         #endif
         // The Honey Slide asset catalog supplies the bear for the app shell.
-        return Image("1_bear")
+        return Image("0_bear")
     }
     /// Use wherever the portrait is drawn at roughly 75 pt or less.
     var thumbnail: Image { menuImage(named: thumbnailName) }
@@ -260,7 +240,7 @@ enum CharacterCatalog {
                         primaryRGB: (0.44, 0.59, 0.80), deepRGB: (0.25, 0.34, 0.48),
                         skyRGB: (0.94, 0.96, 0.99), tintRGB: (0.86, 0.91, 0.97)),
         AnimalCharacter(id: "bear", name: "Bear", emoji: "🐻",
-                        imageName: "bear_01", thumbnailName: "bear_thumb",
+                        imageName: "0_bear", thumbnailName: "0_bear",
                         primaryRGB: (0.65, 0.42, 0.22), deepRGB: (0.39, 0.24, 0.11),
                         skyRGB: (0.99, 0.95, 0.92), tintRGB: (0.97, 0.88, 0.80)),
         AnimalCharacter(id: "fox", name: "Fox", emoji: "🦊",

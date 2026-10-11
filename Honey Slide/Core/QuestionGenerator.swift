@@ -9,7 +9,8 @@
 //
 //  · Order  — a fixed, predictable route. No randomness at all: the sums are
 //             computed straight from the session's step counter, so the same
-//             level always walks the same path (2+2, 2+4, 2+6 …).
+//             level always walks the same path (1+1 … 1+10, or 2+2 … 20+2).
+//             The next ten sums start one higher.
 //  · Random — this level's own number only, shuffled. Every value comes up
 //             exactly once per lap, so the practice stays even without the
 //             answers simply counting up.
@@ -81,6 +82,12 @@ public final class QuestionGenerator {
     /// Position along the fixed Order route. Advanced only when a question is
     /// actually handed out, so a rejected attempt cannot skip a step.
     private var routeStep = 0
+
+    /// Order on addition, subtraction and the tables is one block of ten.
+    /// A rejected attempt retries that same sum, so the block stays in place.
+    private var keepsOrderedCycle: Bool {
+        mode == .order && [.addition, .subtraction, .tables].contains(level.topic)
+    }
     /// The shuffled cycles the Random route runs on, one per purpose.
     private var cycles: [String: ShuffledCycle] = [:]
 
@@ -137,6 +144,13 @@ public final class QuestionGenerator {
         cycles.removeAll()
     }
 
+    /// Lines the ten-sum cycle up with a 1-based round. Round 1 opens on the
+    /// first sum; round 11 opens on the first sum of the next, one-higher block.
+    func alignOrderRoute(toRound number: Int) {
+        guard keepsOrderedCycle else { return }
+        routeStep = max(0, number - 1)
+    }
+
     // MARK: - Level mixing
 
     /// Picks which sub-level this question comes from. Only Mixed and Supermix
@@ -190,7 +204,8 @@ public final class QuestionGenerator {
         for attempt in 0..<limit {
             // A rejected attempt walks the fixed route forward rather than
             // re-offering the sum that was just thrown away.
-            let question = generate(forceTopLevel: forceTopLevel, stepOffset: attempt)
+            let question = generate(forceTopLevel: forceTopLevel,
+                                    stepOffset: keepsOrderedCycle ? 0 : attempt)
             guard question.isValid(requiredDistractors: requiredDistractors) else { continue }
             if forbidden.contains(AnswerValue(question.correctAnswer)) { continue }
             fallback = (question, attempt + 1)
@@ -212,7 +227,7 @@ public final class QuestionGenerator {
     private func record(_ question: MathQuestion, steps: Int) -> MathQuestion {
         lastPrompt = question.prompt
         lastKind = question.kind
-        routeStep += max(1, steps)
+        routeStep += keepsOrderedCycle ? 1 : max(1, steps)
         recentSourceLevels.append(question.sourceLevel)
         if recentSourceLevels.count > 8 { recentSourceLevels.removeFirst() }
         return question
@@ -382,10 +397,11 @@ public final class QuestionGenerator {
         let swapsSides: Bool
         switch route {
         case .fixed:
-            // The fixed route: three groups of five, then round again. The
-            // practised number always leads, so the pattern stays visible.
+            // Ten sums stepping by the practised number. The next ten are the
+            // same run, each one higher. The ones stay in front (1+2, 1+3).
+            // From 2 upward the level stays on the right: 2+2, 4+2, 6+2.
             other = PracticeRoute.additionOther(number: add, step: step)
-            swapsSides = false
+            swapsSides = add > 1
         case .shuffled:
             let ceiling = MathScaling.additionCeiling(source)
             other = cycle("add.\(source)", Array(1...ceiling)).next(random)
@@ -413,6 +429,8 @@ public final class QuestionGenerator {
         let left: Int
         switch route {
         case .fixed:
+            // Ten sums stepping down by the practised number. The next ten
+            // start one higher: 22−2 … 4−2, then 23−2 … 5−2.
             left = PracticeRoute.subtractionStart(number: take, step: step)
         case .shuffled:
             let ceiling = MathScaling.subtractionCeiling(source)
@@ -458,7 +476,7 @@ public final class QuestionGenerator {
         let swapsSides: Bool
         switch route {
         case .fixed:
-            // The endless ×1 … ×12 loop, always with the table in front.
+            // ×1 … ×10, then the same ten again, always with the table in front.
             multiplier = PracticeRoute.tableMultiplier(step: step)
             swapsSides = false
         case .shuffled:

@@ -61,6 +61,8 @@ public final class RoundFactory {
         let options: [AnswerOption]
     }
 
+    private let level: MathLevel
+    private let mode: PracticeMode
     private let generator: QuestionGenerator
     private let random: RandomSource
     /// One identity per button for the whole session. The label on a button
@@ -75,6 +77,8 @@ public final class RoundFactory {
                 mode: PracticeMode = .mixed,
                 seed: UInt64? = nil) {
         let random = RandomSource(seed: seed)
+        self.level = level
+        self.mode = mode
         self.random = random
         self.generator = QuestionGenerator(level: level,
                                            mode: mode,
@@ -115,7 +119,10 @@ public final class RoundFactory {
         let origin = sequenceOrigin ?? last
         if sequenceOrigin == nil { sequenceOrigin = origin }
         var next = plans.keys.max().map { $0 + 1 } ?? origin
-        if plans.isEmpty { next = origin }
+        if plans.isEmpty {
+            next = origin
+            generator.alignOrderRoute(toRound: origin)
+        }
         while next <= last {
             let stageEnd = ((next - 1) / GameConfig.questionsPerStage + 1)
                 * GameConfig.questionsPerStage
@@ -145,7 +152,13 @@ public final class RoundFactory {
             openingAnswers.insert(AnswerValue(question.correctAnswer))
         }
 
-        var pendingQuestions = random.shuffled(openingQuestions)
+        // Order keeps the ten sums in the order they were made. Random and
+        // Mixed still shuffle the opening of a stage.
+        let keepsSumOrder = mode == .order
+            && [.addition, .subtraction, .tables].contains(level.topic)
+        var pendingQuestions = keepsSumOrder
+            ? openingQuestions
+            : random.shuffled(openingQuestions)
         var board = openingQuestions.map(\.correctAnswer)
         while board.count < width {
             board.append(freshFiller(avoiding: Set(board.map(AnswerValue.init)),
