@@ -33,8 +33,8 @@ struct OnboardingView: View {
     private var onboardingCharacter: AnimalCharacter {
         CharacterCatalog.current(isPremium: premium.isPremium)
     }
-    private var accent: Color { onboardingCharacter.color }
-    private var deepAccent: Color { onboardingCharacter.deepColor }
+    private var accent: Color { HoneyMenuPalette.comb }
+    private var deepAccent: Color { HoneyMenuPalette.ink }
 
     var body: some View {
         ZStack {
@@ -91,7 +91,7 @@ struct OnboardingView: View {
         }
         .overlay(alignment: .topLeading) {
             // Steps 2 and 3 can step back to correct a wrong choice. Mirrors
-            // the language flag: same glass style, same top inset, left corner.
+            // the language flag: same cream-and-honey style, same top inset, left corner.
             if step > 0 {
                 backButton
                     .padding(.top, isPad ? 20 : 8)
@@ -133,7 +133,7 @@ struct OnboardingView: View {
                 .foregroundStyle(HoneyMenuPalette.ink.opacity(0.72))
                 .padding(.horizontal, isPad ? 16 : 13)
                 .padding(.vertical, isPad ? 11 : 8)
-                .liquidGlassCapsule()
+                .honeyControlSurface(in: Capsule())
                 .contentShape(Capsule())
         }
     }
@@ -151,14 +151,12 @@ struct OnboardingView: View {
                     .fill(index <= step ? accent : HoneyMenuPalette.comb.opacity(0.28))
                     .frame(width: index == step ? (isPad ? 36 : 28) : (isPad ? 12 : 9),
                            height: isPad ? 8 : 6)
-                    .shadow(color: index == step ? accent.opacity(0.7) : .clear,
-                            radius: 5)
+                    .overlay(Capsule().stroke(.white.opacity(0.5), lineWidth: 0.6))
             }
         }
         .padding(.horizontal, isPad ? 16 : 13)
         .padding(.vertical, isPad ? 10 : 8)
-        .background(.white.opacity(0.72), in: Capsule())
-        .overlay(Capsule().stroke(HoneyMenuPalette.honey.opacity(0.70), lineWidth: 1))
+        .honeyControlSurface(in: Capsule())
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: step)
     }
 
@@ -173,10 +171,11 @@ struct OnboardingView: View {
                 Text("onboarding.name.subtitle")
                     .font(isPad ? .title2.weight(.medium) : .title3.weight(.medium))
                     .multilineTextAlignment(.center)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HoneyMenuPalette.mutedInk)
             }
 
-            TextField(String(), text: $playerName, prompt: Text("name.placeholder"))
+            TextField(String(), text: $playerName,
+                      prompt: Text("name.placeholder").foregroundStyle(HoneyMenuPalette.mutedInk))
                 .font(.system(size: isPad ? 34 : 26, weight: .bold, design: .rounded))
                 .multilineTextAlignment(.center)
                 .focused($isNameFieldFocused)
@@ -185,7 +184,7 @@ struct OnboardingView: View {
                 .onSubmit { goToSubjects() }
                 .padding(.horizontal, isPad ? 22 : 16)
                 .padding(.vertical, isPad ? 18 : 14)
-                .background(.white.opacity(0.6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .honeyControlSurface(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .stroke(isNameFieldFocused ? accent : deepAccent.opacity(0.18),
@@ -195,9 +194,7 @@ struct OnboardingView: View {
                 .animation(.snappy(duration: 0.2), value: isNameFieldFocused)
 
             Button("common.continue") { goToSubjects() }
-                .buttonStyle(OnboardingButtonStyle(isPad: isPad,
-                                                   accent: accent,
-                                                   deepAccent: deepAccent))
+                .buttonStyle(OnboardingButtonStyle(isPad: isPad))
                 .frame(width: isPad ? 260 : 210)
         }
     }
@@ -211,7 +208,7 @@ struct OnboardingView: View {
 
             Text("onboarding.subject.subtitle")
                 .font(isPad ? .title3 : .body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(HoneyMenuPalette.mutedInk)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .padding(.bottom, 4)
@@ -234,15 +231,11 @@ struct OnboardingView: View {
                             Spacer(minLength: 4)
                             Image(systemName: "chevron.forward")
                                 .font(.footnote.weight(.bold))
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(HoneyMenuPalette.mutedInk)
                         }
                         .padding(.horizontal, isPad ? 26 : 16)
                         .frame(maxWidth: .infinity, minHeight: isPad ? 68 : 52)
-                        .background(.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .stroke(accent.opacity(0.26), lineWidth: 1.25)
-                        }
+                        .honeyControlSurface(in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     }
                     .buttonStyle(OnboardingOptionStyle())
                     .accessibilityIdentifier("onboarding-topic-\(option.rawValue)")
@@ -458,23 +451,14 @@ private struct OnboardingTitle: View {
 
 private struct OnboardingButtonStyle: ButtonStyle {
     let isPad: Bool
-    let accent: Color
-    let deepAccent: Color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(isPad ? .title3.weight(.bold) : .headline)
             .frame(maxWidth: .infinity)
             .padding(.vertical, isPad ? 22 : 15)
-            .background(
-                LinearGradient(colors: [accent, deepAccent],
-                               startPoint: .topLeading,
-                               endPoint: .bottomTrailing),
-                in: Capsule()
-            )
-            .overlay(Capsule().stroke(.white.opacity(0.46), lineWidth: 1))
-            .shadow(color: accent.opacity(0.28), radius: 8, y: 4)
-            .foregroundStyle(.white)
+            .honeyControlSurface(in: Capsule(), active: true)
+            .foregroundStyle(HoneyMenuPalette.ink)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
             .opacity(configuration.isPressed ? 0.82 : 1)
     }
@@ -516,26 +500,20 @@ private struct OnboardingChoiceLabel: View {
                     .font(.system(size: (isPad ? 17 : 16) * textScale))
                     .lineLimit(allowsTwoLines ? 2 : 1)
                     .fixedSize(horizontal: false, vertical: true)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isSelected ? HoneyMenuPalette.ink : HoneyMenuPalette.mutedInk)
             }
             Spacer()
             // A tick on the active choice, a chevron on the rest, so the
             // selected option is unmistakable.
             Image(systemName: isSelected ? "checkmark.circle.fill" : "chevron.forward")
                 .font(isSelected ? .title3.weight(.bold) : .footnote.weight(.bold))
-                .foregroundStyle(isSelected ? deepAccent : .secondary)
+                .foregroundStyle(isSelected ? deepAccent : HoneyMenuPalette.mutedInk)
         }
         .padding(.horizontal, isPad ? 26 : 16)
         .frame(maxWidth: .infinity)
         .frame(height: rowHeight)
-        .background(isSelected ? AnyShapeStyle(accent.opacity(0.18))
-                               : AnyShapeStyle(.white.opacity(0.78)),
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(accent.opacity(isSelected ? 0.95 : 0.24),
-                        lineWidth: isSelected ? 2.5 : 1.25)
-        )
+        .honeyControlSurface(in: RoundedRectangle(cornerRadius: 14, style: .continuous),
+                             active: isSelected)
         .foregroundStyle(HoneyMenuPalette.ink)
         .animation(.easeInOut(duration: 0.18), value: isSelected)
     }

@@ -373,7 +373,7 @@ struct HomeView: View {
                 .frame(width: playerPanelWidth)
 
             Rectangle()
-                .fill(character.deepColor.opacity(0.2))
+                .fill(HoneyMenuPalette.ink.opacity(0.2))
                 .frame(width: 1)
                 .padding(.vertical, 2)
 
@@ -414,14 +414,14 @@ struct HomeView: View {
                         .minimumScaleFactor(0.58)
                 }
                 .buttonStyle(.plain)
-                .foregroundStyle(character.deepColor)
+                .foregroundStyle(HoneyMenuPalette.ink)
 
                 totalCounter
                 topicHeader
 
                 Spacer(minLength: isPad ? 5 : 4)
 
-                StreakBar(accent: character.deepColor, height: streakBarHeight) {
+                StreakBar(accent: HoneyMenuPalette.ink, height: streakBarHeight) {
                     NotificationManager.shared.requestAuthorizationOnStreakTap {
                         showGoalPicker = true
                     }
@@ -485,7 +485,7 @@ struct HomeView: View {
                                 heldStart: lastPlayedTotal,
                                 current: totalCards)
         return HStack(spacing: isPad ? 8 : 5) {
-            CurrencyIcon(size: isPad ? 26 : 14)
+            HoneyMenuCurrencyIcon(size: isPad ? 26 : 14)
                 .scaleEffect(highlightsHeaderCards ? 1.32 : 1)
                 .rotationEffect(.degrees(highlightsHeaderCards ? -10 : 0))
             CountingNumber(from: total.from,
@@ -495,7 +495,7 @@ struct HomeView: View {
             Text("home.totalLabel")
         }
         .font(.system(size: isPad ? 26 : 14, weight: .bold, design: .rounded))
-        .foregroundStyle(character.deepColor)
+        .foregroundStyle(HoneyMenuPalette.ink)
         .lineLimit(1)
         .minimumScaleFactor(0.7)
         .animation(.spring(response: 0.35, dampingFraction: 0.75), value: totalCards)
@@ -533,7 +533,7 @@ struct HomeView: View {
         return HStack(spacing: isPad ? 8 : 5) {
             // The card that flies up from the level card aims here, so the
             // reward visibly joins this topic before the totals move.
-            CurrencyIcon(size: isPad ? 26 : 14)
+            HoneyMenuCurrencyIcon(size: isPad ? 26 : 14)
                 .scaleEffect(highlightsHeaderCards ? 1.32 : 1)
                 .rotationEffect(.degrees(highlightsHeaderCards ? -10 : 0))
                 .reportAnchor("topicTotal")
@@ -544,7 +544,7 @@ struct HomeView: View {
             Text(verbatim: L(key: topic.titleKey))
         }
         .font(.system(size: isPad ? 26 : 14, weight: .bold, design: .rounded))
-        .foregroundStyle(character.deepColor)
+        .foregroundStyle(HoneyMenuPalette.ink)
         .lineLimit(1)
         .minimumScaleFactor(0.7)
     }
@@ -616,21 +616,13 @@ struct HomeView: View {
             topicIcon(option, isSelected: isSelected)
                 .frame(maxWidth: .infinity)
                 .frame(height: topicButtonDiameter)
-                .background(
-                    isSelected
-                        ? AnyShapeStyle(LinearGradient(colors: [character.color, character.deepColor],
-                                                       startPoint: .topLeading,
-                                                       endPoint: .bottomTrailing))
-                        : AnyShapeStyle(Color.white.opacity(0.72)),
-                    in: Circle()
-                )
-                .overlay(Circle().stroke(character.color.opacity(isSelected ? 0.62 : 0.30),
-                                         lineWidth: isSelected ? 1.5 : 1))
+                .honeyControlSurface(in: Circle(), active: isSelected)
                 .reportAnchor("topic.\(option.rawValue)")
                 .animation(.snappy(duration: 0.2), value: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoneyPressStyle())
         .accessibilityIdentifier("topic-\(option.rawValue)")
+        .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
         // Holding the star runs the return celebration end to end, which is the
         // only practical way to check the whole chain — card count-up, flight,
         // both totals and the unlock sheet — without playing two full levels.
@@ -653,7 +645,7 @@ struct HomeView: View {
         return Image(systemName: option.symbolName)
             .font(.system(size: size, weight: .bold))
             .frame(height: 24 * scale)
-            .foregroundStyle(isSelected ? .white : character.deepColor)
+            .foregroundStyle(HoneyMenuPalette.ink)
     }
 
     // MARK: Practice mode
@@ -690,25 +682,13 @@ struct HomeView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: modeButtonHeight)
                         .padding(.horizontal, isPad ? 8 : 2)
-                        .background(
-                            isSelected
-                                ? AnyShapeStyle(LinearGradient(colors: [character.color,
-                                                                        character.deepColor],
-                                                               startPoint: .topLeading,
-                                                               endPoint: .bottomTrailing))
-                                : AnyShapeStyle(Color.white.opacity(0.72)),
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(character.color.opacity(isSelected ? 0.58 : 0.30),
-                                        lineWidth: isSelected ? 1.5 : 1)
-                        )
-                        .foregroundStyle(isSelected ? .white : character.deepColor)
+                        .honeyControlSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous),
+                                             active: isSelected)
+                        .foregroundStyle(HoneyMenuPalette.ink)
                         .reportAnchor("mode.\(mode.rawValue)")
                         .animation(.snappy(duration: 0.2), value: isSelected)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoneyPressStyle())
                 .accessibilityIdentifier("mode-\(mode.rawValue)")
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
@@ -755,24 +735,15 @@ struct HomeView: View {
         } label: {
             supermixLabel(variant)
             .lineLimit(1)
-            .foregroundStyle(isSelected ? .white : character.deepColor)
+            .foregroundStyle(HoneyMenuPalette.ink)
             .padding(.horizontal, inset)
             .frame(height: modeButtonHeight)
-            .background(
-                isSelected
-                    ? AnyShapeStyle(LinearGradient(colors: [character.color, character.deepColor],
-                                                   startPoint: .topLeading,
-                                                   endPoint: .bottomTrailing))
-                    : AnyShapeStyle(Color.white.opacity(0.68)),
-                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-            )
-            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(character.color.opacity(isSelected ? 0.58 : 0.32),
-                        lineWidth: isSelected ? 1.5 : 1))
+            .honeyControlSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous),
+                                 active: isSelected)
             .reportAnchor("super.\(variant.rawValue)")
             .animation(.snappy(duration: 0.2), value: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoneyPressStyle())
         .accessibilityIdentifier("supermix-\(variant.rawValue)")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
@@ -937,7 +908,7 @@ struct HomeView: View {
             VStack(spacing: 14) {
                 HStack(spacing: 10) {
                     Rectangle()
-                        .fill(character.deepColor.opacity(0.28))
+                        .fill(HoneyMenuPalette.ink.opacity(0.28))
                         .frame(height: 1.5)
                     HStack(spacing: 5) {
                         Text("menu.premiumLevels")
@@ -945,10 +916,10 @@ struct HomeView: View {
                         Image(systemName: "crown.fill")
                             .font(.caption.weight(.bold))
                     }
-                    .foregroundStyle(character.deepColor)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                     .fixedSize()
                     Rectangle()
-                        .fill(character.deepColor.opacity(0.28))
+                        .fill(HoneyMenuPalette.ink.opacity(0.28))
                         .frame(height: 1.5)
                 }
 
@@ -969,27 +940,24 @@ struct HomeView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "crown.fill")
                         .font(.system(size: isPad ? 24 : 17, weight: .bold))
-                        .foregroundStyle(.yellow)
+                        .foregroundStyle(HoneyMenuPalette.caramel)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("menu.moreLevels")
                             .font(.system(size: isPad ? 20 : 15, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(HoneyMenuPalette.ink)
                         Text("menu.unlockWithPremium")
                             .font(.system(size: isPad ? 16 : 12, weight: .regular))
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(HoneyMenuPalette.ink.opacity(0.8))
                     }
                     Spacer()
                     Image(systemName: "chevron.forward")
                         .font(.system(size: isPad ? 20 : 15, weight: .bold))
-                        .foregroundStyle(.white.opacity(0.9))
+                        .foregroundStyle(HoneyMenuPalette.ink.opacity(0.8))
                         .padding(.trailing, isPad ? 22 : 11)
                 }
                 .padding(isPad ? 20 : 14)
-                .background(
-                    LinearGradient(colors: [character.color, character.deepColor],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing),
-                    in: RoundedRectangle(cornerRadius: 14)
-                )
+                .honeyControlSurface(in: RoundedRectangle(cornerRadius: 14),
+                                     active: true, honeyLip: true)
             }
             .buttonStyle(.plain)
             .accessibilityIdentifier("premium-levels")
@@ -1179,7 +1147,7 @@ struct HomeView: View {
                                 arcHeight: isPad ? 64 : 44,
                                 color: celebration.revealsMaximum
                                     ? LevelCardView.completedPalette(for: character).hero
-                                    : character.color,
+                                    : HoneyMenuPalette.comb,
                                 startedAt: Date(),
                                 duration: Self.flightDuration)
         flights.append(flight)

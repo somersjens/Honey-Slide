@@ -139,14 +139,14 @@ struct DailyGoalPicker: View {
                 .font(isPad
                       ? .system(size: 30, weight: .heavy, design: .rounded)
                       : .headline)
-                .foregroundStyle(isPad ? theme.deepColor : .primary)
+                .foregroundStyle(HoneyMenuPalette.ink)
             periodPicker
 
             Text(goalPeriod == .weekly ? "goal.promptWeekly" : "goal.promptDaily")
                 .font(isPad
                       ? .system(size: 20, weight: .semibold, design: .rounded)
                       : .caption)
-                .foregroundStyle(isPad ? theme.deepColor.opacity(0.7) : .secondary)
+                .foregroundStyle(HoneyMenuPalette.mutedInk)
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: isPad ? 12 : 8), count: 4),
                       spacing: isPad ? 12 : 8) {
@@ -160,9 +160,9 @@ struct DailyGoalPicker: View {
                           ? .system(size: 24, weight: .bold, design: .rounded)
                           : .subheadline.weight(.bold))
                     .frame(maxWidth: .infinity, minHeight: isPad ? 56 : 36)
-                    .background(selectedGoalMinutes == minutes ? theme.color : .white,
-                                in: RoundedRectangle(cornerRadius: isPad ? 14 : 10))
-                    .foregroundStyle(selectedGoalMinutes == minutes ? .white : theme.deepColor)
+                    .honeyControlSurface(in: RoundedRectangle(cornerRadius: isPad ? 14 : 10),
+                                         active: selectedGoalMinutes == minutes)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                 }
             }
         }
@@ -180,6 +180,7 @@ struct DailyGoalPicker: View {
             }
         }
         .pickerStyle(.segmented)
+        .tint(HoneyMenuPalette.comb)
         return Group {
             if isPad {
                 picker
@@ -226,7 +227,7 @@ struct NameEditorCard: View {
         ZStack {
             // Tapping beside the card is the quickest way out, and the dim is
             // what keeps the menu readable but clearly out of reach.
-            Color.black.opacity(appeared ? 0.42 : 0)
+            HoneyMenuPalette.ink.opacity(appeared ? 0.42 : 0)
                 .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .onTapGesture(perform: onCancel)
@@ -251,22 +252,21 @@ struct NameEditorCard: View {
             VStack(alignment: .leading, spacing: 10 * scale) {
                 Text("name.whatsYourName")
                     .font(.system(size: 17 * scale, weight: .heavy, design: .rounded))
-                    .foregroundStyle(theme.deepColor)
+                    .foregroundStyle(HoneyMenuPalette.ink)
 
                 TextField(String(), text: $name, prompt: Text("name.placeholder"))
                     .font(.system(size: 18 * scale, weight: .bold, design: .rounded))
-                    .foregroundStyle(theme.deepColor)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                     .focused($focused)
                     .textContentType(.name)
                     .submitLabel(.done)
                     .onSubmit(save)
                     .padding(.horizontal, 12 * scale)
                     .padding(.vertical, 9 * scale)
-                    .background(.white.opacity(0.85),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .honeyControlSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(focused ? theme.color : theme.deepColor.opacity(0.16),
+                            .stroke(focused ? HoneyMenuPalette.comb : HoneyMenuPalette.ink.opacity(0.16),
                                     lineWidth: focused ? 2 : 1)
                     )
                     .animation(.snappy(duration: 0.18), value: focused)
@@ -278,12 +278,9 @@ struct NameEditorCard: View {
                     Image(systemName: "checkmark")
                         .font(.system(size: 17 * scale, weight: .heavy))
                         .frame(width: 44 * scale, height: 40 * scale)
-                        .background(
-                            LinearGradient(colors: [theme.color, theme.deepColor],
-                                           startPoint: .top, endPoint: .bottom),
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        )
-                        .foregroundStyle(.white)
+                        .honeyControlSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous),
+                                             active: true)
+                        .foregroundStyle(HoneyMenuPalette.ink)
                         .opacity(trimmed.isEmpty ? 0.4 : 1)
                 }
                 .disabled(trimmed.isEmpty)
@@ -292,24 +289,14 @@ struct NameEditorCard: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 15 * scale, weight: .bold))
                         .frame(width: 44 * scale, height: 34 * scale)
-                        .background(.white.opacity(0.8),
-                                    in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .foregroundStyle(theme.deepColor.opacity(0.7))
+                        .honeyControlSurface(in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .foregroundStyle(HoneyMenuPalette.ink.opacity(0.7))
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoneyPressStyle())
         }
         .padding(18 * scale)
-        .background(
-            LinearGradient(colors: [theme.skyColor, .white],
-                           startPoint: .top, endPoint: .bottom),
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .stroke(.white.opacity(0.8), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.22), radius: 22, y: 10)
+        .honeyMenuPanel(accent: HoneyMenuPalette.comb, cornerRadius: 24, prominent: true)
         .fixedSize()
     }
 }
@@ -472,9 +459,8 @@ struct LevelCardView: View {
 
     // MARK: Tiers
 
-    /// Achievement tiers, keyed off the card score. Their colors keep the
-    /// selected character's hue, stepping from its primary color through its
-    /// deep color to a darker finish as the score increases.
+    /// Achievement tiers progress from amber through caramel to dark honey
+    /// ink, so earned cards remain in the same palette as the menu.
     private enum Tier {
         case empty
         case one
@@ -484,14 +470,12 @@ struct LevelCardView: View {
 
         func color(for theme: AnimalCharacter) -> Color {
             switch self {
-            case .empty:  return Color(white: 0.72)
-            case .one:    return theme.color
-            case .two:    return theme.deepColor
+            case .empty:  return HoneyMenuPalette.mutedInk.opacity(0.65)
+            case .one:    return HoneyMenuPalette.comb
+            case .two:    return HoneyMenuPalette.caramel
             case .three:
-                return Color(red: theme.deepRGB.0 * 0.76,
-                             green: theme.deepRGB.1 * 0.76,
-                             blue: theme.deepRGB.2 * 0.76)
-            case .maxed:  return Color(red: 0.30, green: 0.62, blue: 0.24)
+                return HoneyMenuPalette.ink
+            case .maxed:  return HoneyMenuPalette.comb
             }
         }
 
@@ -570,8 +554,8 @@ struct LevelCardView: View {
                                          cornerRadius: 18 * cardScale,
                                          lineWidth: 4 * cardScale,
                                          glowRadius: 9 * cardScale,
-                                         strokeColor: theme.deepColor,
-                                         glowColor: theme.color)
+                                         strokeColor: HoneyMenuPalette.comb,
+                                         glowColor: HoneyMenuPalette.honey)
                 }
             }
         }
@@ -611,7 +595,7 @@ struct LevelCardView: View {
                     .font(.system(size: 36 * cardScale, weight: .heavy, design: .rounded))
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
-                    .foregroundStyle(theme.deepColor)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                 centerLine
                 Spacer(minLength: 2)
                 progressDots(active: displayedTier.activeDots,
@@ -625,12 +609,13 @@ struct LevelCardView: View {
                 .padding(.top, 9 * cardScale)
                 .padding(.leading, 9 * cardScale)
         }
-        .background(cardFill, in: RoundedRectangle(cornerRadius: 18 * cardScale))
+        .honeyControlSurface(in: RoundedRectangle(cornerRadius: 18 * cardScale),
+                             honeyLip: status == .recommended)
         .overlay(alignment: .bottomTrailing) {
             // A quiet comb keeps every level tile in the same visual world as
             // the large menu panels without competing with its score.
             HoneycombCell()
-                .stroke(theme.color.opacity(displayedBest == 0 ? 0.12 : 0.20),
+                .stroke(HoneyMenuPalette.comb.opacity(displayedBest == 0 ? 0.12 : 0.20),
                         lineWidth: max(1, cardScale))
                 .frame(width: 30 * cardScale, height: 30 * cardScale)
                 .offset(x: 8 * cardScale, y: 8 * cardScale)
@@ -641,23 +626,13 @@ struct LevelCardView: View {
             RoundedRectangle(cornerRadius: 18 * cardScale)
                 .stroke(borderColor, lineWidth: (status == .recommended ? 2.5 : 1) * cardScale)
         )
-        .shadow(color: theme.color.opacity(status == .recommended ? 0.22 : 0.10),
+        .shadow(color: HoneyMenuPalette.caramel.opacity(status == .recommended ? 0.18 : 0.06),
                 radius: 6, x: 0, y: 3)
     }
 
-    private var cardFill: LinearGradient {
-        LinearGradient(
-            colors: displayedBest == 0
-                ? [Color.white.opacity(0.82), HoneyMenuPalette.gloss.opacity(0.72)]
-                : [Color.white, theme.skyColor.opacity(0.92)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-    }
-
     private var borderColor: Color {
-        if status == .recommended { return theme.color }
-        return theme.color.opacity(displayedBest == 0 ? 0.28 : 0.44)
+        if status == .recommended { return HoneyMenuPalette.comb }
+        return HoneyMenuPalette.comb.opacity(displayedBest == 0 ? 0.24 : 0.40)
     }
 
     // MARK: Center score line
@@ -667,7 +642,7 @@ struct LevelCardView: View {
         if status == .recommended && best == 0 {
             Text("menu.startHere")
                 .font(.system(size: 13 * cardScale, weight: .bold))
-                .foregroundStyle(theme.deepColor)
+                .foregroundStyle(HoneyMenuPalette.ink)
                 // Longer translations shrink to fit rather than truncating.
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
@@ -675,14 +650,14 @@ struct LevelCardView: View {
         } else if isLocked {
             Image(systemName: "lock.fill")
                 .font(.system(size: 10 * cardScale, weight: .bold))
-                .foregroundStyle(theme.deepColor.opacity(0.75))
+                .foregroundStyle(HoneyMenuPalette.ink.opacity(0.75))
         } else if let pausedCards {
             // A paused level shows its best score next to what the waiting run
             // has already banked, so the reason to go back is on the card.
             HStack(spacing: 3 * cardScale) {
                 cardChip
                 Rectangle()
-                    .fill(theme.deepColor.opacity(0.25))
+                    .fill(HoneyMenuPalette.ink.opacity(0.25))
                     .frame(width: 1, height: 11 * cardScale)
                 HStack(spacing: 2 * cardScale) {
                     Image(systemName: "pause.fill")
@@ -691,7 +666,7 @@ struct LevelCardView: View {
                         .font(.system(size: 12 * cardScale, weight: .bold))
                         .monospacedDigit()
                 }
-                .foregroundStyle(theme.deepColor.opacity(0.7))
+                .foregroundStyle(HoneyMenuPalette.ink.opacity(0.7))
             }
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -723,7 +698,7 @@ struct LevelCardView: View {
                 .rotationEffect(.degrees(scorePulse ? -12 : 0))
         }
         .foregroundStyle(displayedTier == .empty
-                         ? Color(white: 0.6)
+                         ? HoneyMenuPalette.mutedInk
                          : displayedTier.color(for: theme))
     }
 
@@ -763,7 +738,7 @@ struct LevelCardView: View {
         HStack(spacing: 6 * cardScale) {
             ForEach(0..<3) { index in
                 Circle()
-                    .fill(index < active ? color : Color(white: 0.85))
+                    .fill(index < active ? color : HoneyMenuPalette.comb.opacity(0.19))
                     .frame(width: 6 * cardScale, height: 6 * cardScale)
             }
         }
@@ -771,42 +746,14 @@ struct LevelCardView: View {
 
     // MARK: Completed card
 
-    /// The completed card celebrates in two colours: a theme-specific `hero`
-    /// (number, score, dots and ribbon behind the crown) and a gold `metal`
-    /// (crown, border and glow). Each hero colour is deliberately dark enough
-    /// to stay crisp on the warm maximum-card background.
+    /// Completed cards use dark honey ink for the number and ribbon, with
+    /// amber crowns, combs and borders on the pale beeswax surface.
     private var completedPalette: (hero: Color, metal: Color) {
         Self.completedPalette(for: theme)
     }
 
     static func completedPalette(for theme: AnimalCharacter) -> (hero: Color, metal: Color) {
-        let gold = Color(red: 0.87, green: 0.66, blue: 0.12)
-        let hero: Color
-        switch theme.id {
-        case "flying_penguin":
-            hero = theme.deepColor
-        case "frog":
-            hero = Color(red: 0.40, green: 0.24, blue: 0.62)
-        case "bunny":
-            hero = Color(red: 0.47, green: 0.20, blue: 0.36)
-        case "dog":
-            hero = Color(red: 0.68, green: 0.25, blue: 0.16)
-        case "lion":
-            hero = Color(red: 0.18, green: 0.48, blue: 0.24)
-        case "octopus":
-            hero = Color(red: 0.08, green: 0.38, blue: 0.43)
-        case "crab":
-            hero = Color(red: 0.08, green: 0.30, blue: 0.55)
-        case "elephant":
-            hero = Color(red: 0.47, green: 0.23, blue: 0.34)
-        case "bear":
-            hero = Color(red: 0.08, green: 0.39, blue: 0.37)
-        case "fox":
-            hero = Color(red: 0.19, green: 0.27, blue: 0.58)
-        default:
-            hero = theme.deepColor
-        }
-        return (hero, gold)
+        (HoneyMenuPalette.ink, HoneyMenuPalette.comb)
     }
 
     private var completedCard: some View {
@@ -1037,7 +984,7 @@ private struct LevelCardCurrencyIcon: View {
     let size: CGFloat
 
     var body: some View {
-        CurrencyIcon(size: size * 0.88)
+        HoneyMenuCurrencyIcon(size: size * 0.88)
             .frame(width: size * 0.88, height: size * 0.88)
             .frame(width: size, height: size)
     }
@@ -1123,11 +1070,11 @@ struct InfoPopoutCard: View {
     var body: some View {
         VStack(spacing: 0) {
             Triangle()
-                .fill(.white)
+                .fill(HoneyMenuPalette.paper)
                 .frame(width: isPad ? 24 : 18, height: isPad ? 12 : 9)
                 .overlay(alignment: .bottom) {
                     // Hide the seam where the caret meets the card body.
-                    Rectangle().fill(.white).frame(height: 1).padding(.horizontal, 2)
+                    Rectangle().fill(HoneyMenuPalette.paper).frame(height: 1).padding(.horizontal, 2)
                 }
                 .offset(x: caretOffset)
 
@@ -1135,20 +1082,20 @@ struct InfoPopoutCard: View {
                 Text(header.uppercased())
                     .font(.system(size: Self.headerPointSize(isPad: isPad), weight: .heavy))
                     .tracking(0.6)
-                    .foregroundStyle(theme.deepColor.opacity(0.55))
+                    .foregroundStyle(HoneyMenuPalette.ink.opacity(0.55))
                 Text(message)
                     .font(.system(size: Self.messagePointSize(isPad: isPad), weight: .bold))
-                    .foregroundStyle(theme.deepColor)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, Self.horizontalInset(isPad: isPad))
             .padding(.vertical, isPad ? 20 : 11)
-            .background(.white, in: RoundedRectangle(cornerRadius: isPad ? 20 : 16, style: .continuous))
+            .background(HoneyMenuPalette.creamFill, in: RoundedRectangle(cornerRadius: isPad ? 20 : 16, style: .continuous))
             .overlay(RoundedRectangle(cornerRadius: isPad ? 20 : 16, style: .continuous)
-                .stroke(theme.deepColor.opacity(0.18), lineWidth: 1))
+                .stroke(HoneyMenuPalette.ink.opacity(0.18), lineWidth: 1))
         }
-        .shadow(color: theme.deepColor.opacity(0.22), radius: 14, y: 6)
+        .shadow(color: HoneyMenuPalette.ink.opacity(0.22), radius: 14, y: 6)
     }
 }
 
@@ -1271,7 +1218,7 @@ struct AlternatingCardSummary: View {
         HStack(spacing: 4) {
             // The card glyph never takes part in the swap: holding it perfectly
             // still avoids the dip two crossfading icons would produce.
-            CurrencyIcon(size: iconSize)
+            HoneyMenuCurrencyIcon(size: iconSize)
                 .scaleEffect(isHighlighted ? 1.32 : 1)
                 .rotationEffect(.degrees(isHighlighted ? -10 : 0))
 
@@ -1486,7 +1433,7 @@ struct CardFlightView: View {
                 + (flight.destinationPointSize - flight.sourcePointSize) * eased
             // Merge softly into the header glyph over the last stretch.
             let fade = t > 0.88 ? max(0, 1 - (t - 0.88) / 0.12) : 1
-            CurrencyIcon(size: size)
+            HoneyMenuCurrencyIcon(size: size)
                 .foregroundStyle(flight.color)
                 .shadow(color: flight.color.opacity(0.35), radius: 3, y: 1)
                 .opacity(fade)

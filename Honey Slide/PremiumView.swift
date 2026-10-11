@@ -225,7 +225,7 @@ struct PremiumView: View {
         .sheet(isPresented: $showsParentApproval) {
             ParentApprovalGate(
                 accent: character.color,
-                deepColor: character.deepColor,
+                deepColor: HoneyMenuPalette.ink,
                 onApproved: {
                     showsParentApproval = false
                     startPurchase()
@@ -260,11 +260,9 @@ struct PremiumView: View {
         return Button { dismiss() } label: {
             Image(systemName: "xmark")
                 .font(.system(size: glyph, weight: .bold))
-                .foregroundStyle(character.deepColor)
+                .foregroundStyle(HoneyMenuPalette.ink)
                 .frame(width: side, height: side)
-                .background(.white.opacity(0.7), in: Circle())
-                .overlay(Circle().stroke(character.color.opacity(0.42), lineWidth: isPad ? 1.75 : 1.25))
-                .shadow(color: character.deepColor.opacity(0.15), radius: 6, y: 3)
+                .honeyControlSurface(in: Circle())
         }
     }
 
@@ -277,7 +275,7 @@ struct PremiumView: View {
                     closeButton
                     Spacer()
                     LanguagePicker(
-                        tint: character.deepColor.opacity(0.7),
+                        tint: HoneyMenuPalette.ink.opacity(0.7),
                         scale: isPad ? 1.85 : 0.8
                     )
                 } else {
@@ -308,7 +306,7 @@ struct PremiumView: View {
                 CharacterPortrait(character: character,
                                   side: heroSize * 0.92,
                                   magnification: 1.04)
-                    .shadow(color: character.deepColor.opacity(0.25), radius: 16, y: 9)
+                    .shadow(color: HoneyMenuPalette.ink.opacity(0.25), radius: 16, y: 9)
                     .id(previewCharacterID)
                     .transition(.scale.combined(with: .opacity))
                     .zIndex(1)
@@ -317,7 +315,7 @@ struct PremiumView: View {
 
             Text(character.localizedName)
                 .font(.system(size: metrics.nameSize, weight: .heavy, design: .rounded))
-                .foregroundStyle(character.deepColor)
+                .foregroundStyle(HoneyMenuPalette.ink)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
 
@@ -370,22 +368,7 @@ struct PremiumView: View {
         }
         .padding(metrics.panelPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(colors: [Color.white.opacity(0.68),
-                                    character.tintColor.opacity(0.42)],
-                           startPoint: .topLeading,
-                           endPoint: .bottomTrailing),
-            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .strokeBorder(
-                    LinearGradient(colors: [character.color, character.deepColor],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing),
-                    lineWidth: 1.75
-                )
-                .opacity(0.55)
-        )
+        .honeyMenuPanel(accent: HoneyMenuPalette.comb, cornerRadius: 24)
     }
 
     @ViewBuilder
@@ -416,7 +399,7 @@ struct PremiumView: View {
         HStack(spacing: 6) {
             if let icon {
                 if icon == Currency.iconName {
-                    CurrencyIcon(size: metrics.badgeSize)
+                    HoneyMenuCurrencyIcon(size: metrics.badgeSize)
                 } else {
                     Image(systemName: icon)
                 }
@@ -426,11 +409,10 @@ struct PremiumView: View {
                 .minimumScaleFactor(0.6)
         }
         .font(.system(size: metrics.badgeSize, weight: .bold, design: .rounded))
-        .foregroundStyle(character.deepColor)
+        .foregroundStyle(HoneyMenuPalette.ink)
         .padding(.horizontal, metrics.badgeSize)
         .padding(.vertical, metrics.badgeSize * 0.5)
-        .background(.white.opacity(0.58), in: Capsule())
-        .overlay(Capsule().stroke(character.color.opacity(0.38), lineWidth: 1))
+        .honeyControlSurface(in: Capsule())
     }
 
     /// The whole cast in one row along the bottom, each animal captioned with
@@ -456,17 +438,7 @@ struct PremiumView: View {
             }
         }
         .padding(metrics.stripPadding)
-        .background(
-            LinearGradient(colors: [Color.white.opacity(0.48),
-                                    HoneyMenuPalette.gloss.opacity(0.55)],
-                           startPoint: .top,
-                           endPoint: .bottom),
-            in: RoundedRectangle(cornerRadius: 22, style: .continuous)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .stroke(character.color.opacity(0.20), lineWidth: 1)
-        }
+        .honeyMenuPanel(accent: HoneyMenuPalette.comb, cornerRadius: 22)
     }
 
     private func characterTile(for animal: AnimalCharacter,
@@ -492,15 +464,10 @@ struct PremiumView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, metrics.tilePadding * 0.7)
             .padding(.vertical, metrics.tilePadding)
-            .background(isSelected ? animal.color.opacity(0.22) : animal.skyColor.opacity(0.46),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(isSelected ? animal.color : animal.color.opacity(0.24),
-                            lineWidth: isSelected ? 2 : 1)
-            }
+            .honeyControlSurface(in: RoundedRectangle(cornerRadius: 16, style: .continuous),
+                                 active: isSelected)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoneyPressStyle())
         .accessibilityIdentifier("character-cell")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
@@ -521,7 +488,7 @@ struct PremiumView: View {
                 .foregroundStyle(.white)
                 .frame(width: metrics.tileBadge * 0.9,
                        height: metrics.tileBadge * 0.9)
-                .background(animal.color, in: Circle())
+                .background(HoneyMenuPalette.caramel, in: Circle())
                 .characterTileBadgeStyle(character: animal,
                                          isUnlocked: true,
                                          size: metrics.tileBadge)
@@ -562,16 +529,16 @@ struct PremiumView: View {
                     .font(.system(size: metrics.buttonFont, weight: .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, metrics.buttonPadding)
-                    .background(character.color, in: Capsule())
-                    .foregroundStyle(.white)
+                    .honeyControlSurface(in: Capsule(), active: true)
+                    .foregroundStyle(HoneyMenuPalette.ink)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoneyPressStyle())
         } else {
             VStack(spacing: 0) {
                 Button { showsParentApproval = true } label: {
                     HStack(spacing: 10) {
                         if premium.isPurchasing {
-                            ProgressView().tint(.white)
+                            ProgressView().tint(HoneyMenuPalette.ink)
                         } else {
                             Image(systemName: "crown.fill")
                                 .font(.system(size: metrics.buttonFont, weight: .bold))
@@ -583,20 +550,15 @@ struct PremiumView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, metrics.buttonPadding)
-                    .background(
-                        LinearGradient(colors: [character.color, character.deepColor],
-                                       startPoint: .top, endPoint: .bottom),
-                        in: Capsule()
-                    )
-                    .foregroundStyle(.white)
-                    .shadow(color: character.deepColor.opacity(0.3), radius: 10, y: 5)
+                    .honeyControlSurface(in: Capsule(), active: true)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(HoneyPressStyle())
                 .disabled(premium.isPurchasing)
 
                 Text("premium.oneTime")
                     .font(.system(size: metrics.footnote))
-                    .foregroundStyle(character.deepColor.opacity(0.7))
+                    .foregroundStyle(HoneyMenuPalette.ink.opacity(0.7))
                     .frame(maxWidth: .infinity)
                     .multilineTextAlignment(.center)
                     // A bigger, fixed step down from the button than between
@@ -610,7 +572,7 @@ struct PremiumView: View {
                     Task { await premium.restorePurchases() }
                 }
                 .font(.system(size: metrics.footnote * 0.92))
-                .foregroundStyle(character.deepColor.opacity(0.7))
+                .foregroundStyle(HoneyMenuPalette.ink.opacity(0.7))
                 .frame(maxWidth: .infinity)
                 .padding(.top, metrics.footnote * 0.3)
 
@@ -659,17 +621,14 @@ struct PremiumView: View {
     private func offerHeader(_ metrics: PremiumMetrics) -> some View {
         let crown = Image(systemName: "crown.fill")
             .font(.system(size: metrics.headerSize * (isPad ? 1.45 : 1.15), weight: .bold))
-            .foregroundStyle(
-                LinearGradient(colors: [character.color, character.deepColor],
-                               startPoint: .top, endPoint: .bottom)
-            )
-            .shadow(color: character.color.opacity(0.35), radius: 6, y: 2)
+            .foregroundStyle(HoneyMenuPalette.caramel)
+            .shadow(color: HoneyMenuPalette.honey.opacity(0.35), radius: 3, y: 2)
         let title = Text(premium.isPremium
                          ? L("premium.unlockedWithPremium")
                          : L("premium.upgradeTitle"))
             .font(.system(size: metrics.headerSize * (isPad ? 1.25 : 1.05),
                           weight: .heavy, design: .rounded))
-            .foregroundStyle(character.deepColor)
+            .foregroundStyle(HoneyMenuPalette.ink)
             .multilineTextAlignment(.center)
             .lineLimit(2)
             .minimumScaleFactor(0.65)
@@ -743,30 +702,19 @@ struct PremiumView: View {
         return HStack(spacing: metrics.panelSpacing) {
             Image(systemName: icon)
                 .font(.system(size: metrics.featureTitle * 0.88, weight: .bold))
-                .foregroundStyle(.white)
+                .foregroundStyle(HoneyMenuPalette.ink)
                 .frame(width: metrics.featureTitle * 2.25,
                        height: metrics.featureTitle * 2.25)
-                .background(
-                    LinearGradient(colors: [character.color, character.deepColor],
-                                   startPoint: .topLeading,
-                                   endPoint: .bottomTrailing),
-                    in: RoundedRectangle(cornerRadius: metrics.featureTitle * 0.68,
-                                         style: .continuous)
-                )
-                .overlay {
-                    RoundedRectangle(cornerRadius: metrics.featureTitle * 0.68,
-                                     style: .continuous)
-                        .stroke(.white.opacity(0.5), lineWidth: 1)
-                }
+                .honeyControlSurface(in: HoneycombCell(), active: true)
 
             VStack(alignment: .leading, spacing: metrics.footnote * 0.18) {
                 Text(title)
                     .font(.system(size: titleSize, weight: .bold))
-                    .foregroundStyle(character.deepColor)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                     .lineLimit(2)
                 Text(subtitle)
                     .font(.system(size: subtitleSize))
-                    .foregroundStyle(character.deepColor.opacity(0.7))
+                    .foregroundStyle(HoneyMenuPalette.ink.opacity(0.7))
                     .lineLimit(1)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -783,12 +731,7 @@ struct PremiumView: View {
         .padding(.horizontal, metrics.panelPadding * 0.7)
         .padding(.vertical, metrics.panelPadding * 0.55)
         .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(0.62),
-                    in: RoundedRectangle(cornerRadius: corner, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: corner, style: .continuous)
-                .strokeBorder(character.color.opacity(0.55), lineWidth: 1.25)
-        )
+        .honeyControlSurface(in: RoundedRectangle(cornerRadius: corner, style: .continuous))
     }
 
     private func unlockCelebration(animal: AnimalCharacter) -> some View {
@@ -817,8 +760,8 @@ struct PremiumView: View {
                                 RadialGradient(
                                     colors: [
                                         .white.opacity(unlockPulse ? 0.46 : 0.32),
-                                        animal.tintColor.opacity(unlockPulse ? 0.42 : 0.28),
-                                        animal.color.opacity(unlockPulse ? 0.12 : 0.07),
+                                        HoneyMenuPalette.gloss.opacity(unlockPulse ? 0.42 : 0.28),
+                                        HoneyMenuPalette.honey.opacity(unlockPulse ? 0.12 : 0.07),
                                         .clear
                                     ],
                                     center: .center,
@@ -833,7 +776,7 @@ struct PremiumView: View {
                                 let radiusVariation: CGFloat = index.isMultiple(of: 2) ? 0.92 : 1.04
                                 Group {
                                     if index.isMultiple(of: 4) {
-                                        CurrencyIcon(size: CGFloat(11 + (index % 3) * 3) * scale)
+                                        HoneyMenuCurrencyIcon(size: CGFloat(11 + (index % 3) * 3) * scale)
                                     } else {
                                         Image(systemName: "drop.fill")
                                             .font(.system(
@@ -843,7 +786,7 @@ struct PremiumView: View {
                                     }
                                 }
                                     .foregroundStyle(
-                                        index.isMultiple(of: 4) ? animal.deepColor : animal.color
+                                        index.isMultiple(of: 4) ? HoneyMenuPalette.ink : HoneyMenuPalette.honey
                                     )
                                     // Cancel the ring's rotation on each glyph so
                                     // the pots and drops keep circling but stay
@@ -865,7 +808,7 @@ struct PremiumView: View {
                             .scaleEffect(unlockCharacterScale)
                             .rotationEffect(.degrees(unlockCharacterRotation))
                             .offset(y: unlockCharacterFloating ? -7 * scale : 7 * scale)
-                            .shadow(color: animal.deepColor.opacity(0.35), radius: 18, y: 9)
+                            .shadow(color: HoneyMenuPalette.ink.opacity(0.35), radius: 18, y: 9)
                     }
                     .frame(width: stageSize, height: stageSize)
                     .clipped()
@@ -873,7 +816,7 @@ struct PremiumView: View {
                     Text(verbatim: L(key: "premium.characterUnlocked"))
                         .font(.system(size: 24 * scale, weight: .black, design: .rounded))
                         .tracking(0.8)
-                        .foregroundStyle(animal.deepColor)
+                        .foregroundStyle(HoneyMenuPalette.ink)
                         .multilineTextAlignment(.center)
                         .lineLimit(2)
                         .minimumScaleFactor(0.68)
@@ -884,13 +827,13 @@ struct PremiumView: View {
                         .padding(.vertical, 16 * scale)
                 }
                 .frame(width: cardWidth)
-                .background(animal.skyColor)
+                .background(HoneyMenuPalette.cream)
                 .clipShape(RoundedRectangle(cornerRadius: 32, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: 32, style: .continuous)
-                        .stroke(animal.color.opacity(0.6), lineWidth: 4)
+                        .stroke(HoneyMenuPalette.honey.opacity(0.6), lineWidth: 4)
                 )
-                .shadow(color: animal.deepColor.opacity(0.28), radius: 28, y: 12)
+                .shadow(color: HoneyMenuPalette.ink.opacity(0.28), radius: 28, y: 12)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
@@ -992,14 +935,14 @@ private extension View {
                                  size: CGFloat) -> some View {
         self
             .font(.system(size: size, weight: .heavy, design: .rounded))
-            .foregroundStyle(character.deepColor.opacity(isUnlocked ? 1 : 0.75))
+            .foregroundStyle(HoneyMenuPalette.ink.opacity(isUnlocked ? 1 : 0.75))
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .allowsTightening(true)
             // Fixed rather than minimum sizing, so a tick (little content) and a
             // fly total like "5000" (more content) render as the exact same pill.
             .frame(width: size * 3.6, height: size * 1.4)
-            .background(character.color.opacity(isUnlocked ? 0.22 : 0.10), in: Capsule())
+            .background(HoneyMenuPalette.gloss.opacity(isUnlocked ? 0.78 : 0.4), in: Capsule())
     }
 }
 

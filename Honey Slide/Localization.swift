@@ -438,28 +438,6 @@ extension Bundle {
     }
 }
 
-// MARK: - Liquid glass styling with an iOS 16 fallback
-
-private struct LiquidGlassCapsule: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 26.0, *) {
-            content.glassEffect(in: Capsule())
-        } else {
-            content
-                .background(.ultraThinMaterial, in: Capsule())
-                .overlay(Capsule().stroke(.white.opacity(0.4), lineWidth: 0.8))
-                .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
-        }
-    }
-}
-
-extension View {
-    /// Liquid-glass capsule background (with an iOS 16 material fallback),
-    /// shared by the language picker and the onboarding back button so they
-    /// match exactly.
-    func liquidGlassCapsule() -> some View { modifier(LiquidGlassCapsule()) }
-}
-
 // MARK: - Re-applying the language environment across modal boundaries
 
 /// Re-applies the app's locale. Modal presentations (`sheet`,
@@ -542,7 +520,7 @@ struct LanguagePicker: View {
         }
         .padding(.horizontal, 12 * scale)
         .padding(.vertical, 8 * scale)
-        .liquidGlassCapsule()
+        .honeyControlSurface(in: Capsule())
         .contentShape(Capsule())
     }
 

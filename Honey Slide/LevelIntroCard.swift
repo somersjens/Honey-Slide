@@ -170,7 +170,7 @@ struct LevelIntroCard: View {
                             .padding(.trailing, 22 * scale)
 
                             Rectangle()
-                                .fill(theme.color.opacity(0.26))
+                                .fill(HoneyMenuPalette.comb.opacity(0.26))
                                 .frame(width: 1)
 
                             // The information side deliberately contains only
@@ -225,7 +225,7 @@ struct LevelIntroCard: View {
                 Text(title)
                     .font(.system(size: 29 * textScale * titleScale,
                                   weight: .heavy, design: .rounded))
-                    .foregroundStyle(theme.deepColor)
+                    .foregroundStyle(HoneyMenuPalette.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.4)
                     .allowsTightening(true)
@@ -252,20 +252,11 @@ struct LevelIntroCard: View {
                     .font(.system(size: 17 * actionScale, weight: .heavy))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14 * actionScale)
-                    .foregroundStyle(.white)
-                    .background(
-                        LinearGradient(colors: [theme.color, theme.deepColor],
-                                       startPoint: .topLeading,
-                                       endPoint: .bottomTrailing),
-                        in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(.white.opacity(0.42), lineWidth: 1)
-                    }
-                    .shadow(color: theme.color.opacity(0.28), radius: 8, y: 4)
+                    .foregroundStyle(HoneyMenuPalette.ink)
+                    .honeyControlSurface(in: RoundedRectangle(cornerRadius: 18, style: .continuous),
+                                         active: true, honeyLip: true)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoneyPressStyle())
             .accessibilityIdentifier("intro-start")
 
             Button(action: onExit) {
@@ -273,13 +264,10 @@ struct LevelIntroCard: View {
                     .font(.system(size: 17 * actionScale, weight: .heavy))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14 * actionScale)
-                    .foregroundStyle(theme.deepColor)
-                    .background(.white.opacity(0.7),
-                                in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous)
-                        .stroke(theme.color.opacity(0.32), lineWidth: 1.25))
+                    .foregroundStyle(HoneyMenuPalette.ink)
+                    .honeyControlSurface(in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(HoneyPressStyle())
             .accessibilityIdentifier("intro-back")
         }
     }
@@ -296,7 +284,7 @@ struct LevelIntroCard: View {
                 Text("game.intro.progressPaused")
             }
             .font(.system(size: 13 * textScale, weight: .semibold))
-            .foregroundStyle(theme.deepColor.opacity(0.62))
+            .foregroundStyle(HoneyMenuPalette.mutedInk)
             .frame(maxWidth: .infinity)
             .padding(.trailing, 22 * scale)
 
@@ -311,7 +299,7 @@ struct LevelIntroCard: View {
                             .minimumScaleFactor(0.55)
                     }
                     .font(.system(size: 13 * textScale, weight: .semibold))
-                    .foregroundStyle(theme.deepColor.opacity(0.62))
+                    .foregroundStyle(HoneyMenuPalette.mutedInk)
                     .frame(maxWidth: .infinity)
                     .accessibilityIdentifier("intro-last-challenge")
                 } else {
@@ -373,16 +361,13 @@ struct LevelIntroCard: View {
         } label: {
             Image(systemName: "graduationcap.fill")
                 .font(.system(size: 16 * scale, weight: .heavy))
-                .foregroundStyle(isTutorialArmed ? .white : theme.deepColor)
+                .foregroundStyle(HoneyMenuPalette.ink)
                 .frame(width: 42 * scale, height: audioRowHeight)
-                .background(isTutorialArmed ? AnyShapeStyle(theme.deepColor)
-                                            : AnyShapeStyle(theme.skyColor))
-                .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
-                    .stroke(theme.color.opacity(isTutorialArmed ? 0.50 : 0.24), lineWidth: 1))
+                .honeyControlSurface(in: RoundedRectangle(cornerRadius: 12 * scale, style: .continuous),
+                                     active: isTutorialArmed)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoneyPressStyle())
         .accessibilityIdentifier("intro-tutorial")
         .accessibilityAddTraits(isTutorialArmed ? [.isButton, .isSelected] : .isButton)
     }
@@ -397,20 +382,18 @@ struct LevelIntroCard: View {
                 if !isOn {
                     // The struck-through glyph reads as "off" at a glance.
                     Capsule()
-                        .fill(theme.deepColor)
+                        .fill(HoneyMenuPalette.ink)
                         .frame(width: 23 * scale, height: 2.3 * scale)
                         .rotationEffect(.degrees(-45))
                 }
             }
-            .foregroundStyle(theme.deepColor.opacity(isOn ? 1 : 0.55))
+            .foregroundStyle(HoneyMenuPalette.ink.opacity(isOn ? 1 : 0.55))
             .frame(width: 42 * scale, height: audioRowHeight)
-            .background(theme.skyColor)
-            .clipShape(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 12 * scale, style: .continuous)
-                .stroke(theme.color.opacity(0.24), lineWidth: 1))
+            .honeyControlSurface(in: RoundedRectangle(cornerRadius: 12 * scale, style: .continuous),
+                                 active: isOn)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(HoneyPressStyle())
     }
 
     private func featureCard(_ feature: IntroFeature) -> some View {
@@ -425,7 +408,7 @@ struct LevelIntroCard: View {
                         .allowsTightening(true)
                 } else {
                     if feature.icon == Currency.iconName {
-                        CurrencyIcon(size: 28 * textScale * featureIconScale)
+                        HoneyMenuCurrencyIcon(size: 28 * textScale * featureIconScale)
                     } else {
                         Image(systemName: feature.icon)
                             .font(.system(size: (feature.icon == "multiply" ? 34 : 28)
@@ -433,34 +416,20 @@ struct LevelIntroCard: View {
                     }
                 }
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(HoneyMenuPalette.ink)
+            .padding(.horizontal, 6 * scale)
             .frame(width: 54 * scale, height: 54 * scale)
-            .background(
-                LinearGradient(colors: [theme.color, theme.deepColor],
-                               startPoint: .topLeading,
-                               endPoint: .bottomTrailing),
-                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-            )
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(.white.opacity(0.44), lineWidth: 1))
+            .honeyControlSurface(in: HoneycombCell(), active: true)
 
             Text(emphasizedAttributedString(feature.text))
                 .font(.system(size: 15 * textScale * featureTextScale, weight: .regular))
-                .foregroundStyle(theme.deepColor.opacity(0.84))
+                .foregroundStyle(HoneyMenuPalette.ink.opacity(0.84))
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 10 * scale)
         .padding(.vertical, 6 * scale)
-        .background(
-            LinearGradient(colors: [theme.skyColor.opacity(0.58),
-                                    HoneyMenuPalette.gloss.opacity(0.55)],
-                           startPoint: .leading,
-                           endPoint: .trailing),
-            in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .stroke(theme.color.opacity(0.20), lineWidth: 1))
+        .honeyControlSurface(in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private struct IntroFeature: Identifiable {

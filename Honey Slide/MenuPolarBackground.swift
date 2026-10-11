@@ -2,98 +2,51 @@
 //  MenuPolarBackground.swift
 //  Honey Slide
 //
-//  Shared meadow styling for every menu surface. The layout follows Hungry
-//  Frog's quiet land backdrop — cream field, soft sun, low hills — and then
-//  adds a honey layer: amber light, honeycomb and drips. The old type name
-//  stays as a wrapper for promo compositions that still reference it.
+//  Shared cream, beeswax and poured-honey finishes for the app's menus.
+//  All decoration stays inside the existing layout and never intercepts input.
 //
 
 import SwiftUI
 
 enum HoneyMenuPalette {
-    /// Warm cream, a step more golden than the meadow it is based on.
-    static let cream = Color(red: 1.00, green: 0.955, blue: 0.84)
-    static let meadow = Color(red: 0.76, green: 0.88, blue: 0.58)
-    static let honey = Color(red: 0.96, green: 0.74, blue: 0.24)
-    static let comb = Color(red: 0.84, green: 0.52, blue: 0.10)
-    /// Soft wash used where menu panels used to pick up starlight.
-    static let gloss = Color(red: 1.00, green: 0.93, blue: 0.74)
-    /// Warm brown ink, readable on the cream panels.
-    static let ink = Color(red: 0.36, green: 0.18, blue: 0.04)
-    static let mutedInk = ink.opacity(0.67)
+    static let cream = Color(red: 1.00, green: 0.96, blue: 0.86)
+    static let paper = Color(red: 1.00, green: 0.985, blue: 0.94)
+    static let gloss = Color(red: 1.00, green: 0.89, blue: 0.62)
+    static let honey = Color(red: 0.98, green: 0.72, blue: 0.20)
+    static let comb = Color(red: 0.84, green: 0.48, blue: 0.09)
+    static let caramel = Color(red: 0.65, green: 0.32, blue: 0.075)
+    static let ink = Color(red: 0.35, green: 0.18, blue: 0.065)
+    static let mutedInk = Color(red: 0.53, green: 0.36, blue: 0.20)
+
+    static var honeyFill: LinearGradient {
+        LinearGradient(stops: [.init(color: gloss, location: 0),
+                               .init(color: honey, location: 0.48),
+                               .init(color: comb, location: 1)],
+                       startPoint: .top, endPoint: .bottom)
+    }
+    static var creamFill: LinearGradient {
+        LinearGradient(colors: [paper, cream],
+                       startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
 }
 
-/// The shared backdrop behind the welcome flow, main menu and Premium sheet.
-/// Hills stay low in contrast so controls and longer copy remain easy to read.
+/// Sunlit parchment with connected combs at the edges and a pool of honey
+/// below the controls. No landscape silhouettes or scattered star-like flecks.
 struct HoneyMenuBackground: View {
     let accent: Color
 
     var body: some View {
         GeometryReader { proxy in
-            let diameter = max(proxy.size.width, proxy.size.height)
-
             ZStack {
-                HoneyMenuPalette.cream
-
-                Circle()
-                    .fill(Color.white.opacity(0.70))
-                    .frame(width: proxy.size.width * 0.46,
-                           height: proxy.size.width * 0.46)
-                    .blur(radius: 18)
-                    .offset(x: -proxy.size.width * 0.30,
-                            y: -proxy.size.height * 0.32)
-
-                Circle()
-                    .fill(HoneyMenuPalette.honey.opacity(0.34))
-                    .frame(width: proxy.size.width * 0.22,
-                           height: proxy.size.width * 0.22)
-                    .blur(radius: 10)
-                    .offset(x: -proxy.size.width * 0.22,
-                            y: -proxy.size.height * 0.36)
-
-                Ellipse()
-                    .fill(HoneyMenuPalette.meadow.opacity(0.55))
-                    .frame(width: proxy.size.width * 0.72,
-                           height: max(110, proxy.size.height * 0.30))
-                    .offset(x: proxy.size.width * 0.22,
-                            y: proxy.size.height * 0.46)
-
-                Ellipse()
-                    .fill(HoneyMenuPalette.honey.opacity(0.28))
-                    .frame(width: proxy.size.width * 0.58,
-                           height: max(90, proxy.size.height * 0.22))
-                    .offset(x: -proxy.size.width * 0.30,
-                            y: proxy.size.height * 0.50)
-
-                Ellipse()
-                    .fill(accent.opacity(0.10))
-                    .frame(width: proxy.size.width * 0.46,
-                           height: max(70, proxy.size.height * 0.16))
-                    .offset(x: proxy.size.width * 0.08,
-                            y: proxy.size.height * 0.38)
-
-                HoneycombCell()
-                    .fill(HoneyMenuPalette.honey.opacity(0.16))
-                    .overlay {
-                        HoneycombCell()
-                            .stroke(HoneyMenuPalette.comb.opacity(0.28), lineWidth: 3)
-                    }
-                    .frame(width: diameter * 0.42, height: diameter * 0.42)
-                    .offset(x: proxy.size.width * 0.46,
-                            y: proxy.size.height * 0.42)
-
-                HoneyDrip()
-                    .fill(
-                        LinearGradient(colors: [HoneyMenuPalette.honey.opacity(0.85),
-                                                HoneyMenuPalette.comb.opacity(0.70)],
-                                       startPoint: .top,
-                                       endPoint: .bottom)
-                    )
-                    .frame(width: 16, height: 26)
-                    .offset(x: proxy.size.width * 0.16,
-                            y: -proxy.size.height * 0.47)
-
-                HoneyMenuSprinkles(accent: accent)
+                LinearGradient(colors: [HoneyMenuPalette.paper,
+                                        HoneyMenuPalette.cream,
+                                        HoneyMenuPalette.gloss.opacity(0.72)],
+                               startPoint: .topLeading, endPoint: .bottomTrailing)
+                RadialGradient(colors: [.white.opacity(0.94), .clear],
+                               center: UnitPoint(x: 0.24, y: 0.13),
+                               startRadius: 0,
+                               endRadius: proxy.size.width * 0.65)
+                HoneyBackdropArtwork()
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .clipped()
@@ -104,22 +57,65 @@ struct HoneyMenuBackground: View {
     }
 }
 
-/// A warm veil for cards shown over the playfield. The game stays visible,
-/// while the honey wash ties the start and result screens to Home and Premium.
+private struct HoneyBackdropArtwork: View {
+    var body: some View {
+        Canvas { context, size in
+            let radius = min(size.width * 0.046, size.height * 0.085)
+            // A connected comb fades toward the centre, leaving the copy calm.
+            for corner in 0..<2 {
+                let anchor = CGPoint(x: corner == 0 ? -radius * 0.2 : size.width + radius * 0.2,
+                                     y: corner == 0 ? radius * 0.5 : size.height * 0.74)
+                for column in 0..<5 {
+                    for row in -2...3 {
+                        let inward = (CGFloat(column) + (row.isMultiple(of: 2) ? 0 : 0.5)) * radius * sqrt(3)
+                        let x = anchor.x + (corner == 0 ? inward : -inward)
+                        let y = anchor.y + CGFloat(row) * radius * 1.5
+                        let cell = HoneycombCell().path(in: CGRect(x: x - radius, y: y - radius,
+                                                                   width: radius * 2, height: radius * 2))
+                        let fade = Double(5 - column) / 5
+                        context.fill(cell, with: .color(HoneyMenuPalette.honey.opacity(0.055 * fade)))
+                        context.stroke(cell, with: .color(HoneyMenuPalette.comb.opacity(0.17 * fade)),
+                                       lineWidth: 1.2)
+                    }
+                }
+            }
+
+            var pool = Path()
+            pool.move(to: CGPoint(x: 0, y: size.height * 0.94))
+            pool.addCurve(to: CGPoint(x: size.width, y: size.height * 0.84),
+                          control1: CGPoint(x: size.width * 0.34, y: size.height * 1.04),
+                          control2: CGPoint(x: size.width * 0.64, y: size.height * 0.79))
+            pool.addLine(to: CGPoint(x: size.width, y: size.height))
+            pool.addLine(to: CGPoint(x: 0, y: size.height))
+            pool.closeSubpath()
+            context.fill(pool, with: .linearGradient(
+                Gradient(colors: [HoneyMenuPalette.honey.opacity(0.22),
+                                  HoneyMenuPalette.comb.opacity(0.38)]),
+                startPoint: CGPoint(x: 0, y: size.height * 0.83),
+                endPoint: CGPoint(x: 0, y: size.height)))
+            var shine = Path()
+            shine.move(to: CGPoint(x: 0, y: size.height * 0.945))
+            shine.addCurve(to: CGPoint(x: size.width, y: size.height * 0.845),
+                           control1: CGPoint(x: size.width * 0.34, y: size.height * 1.045),
+                           control2: CGPoint(x: size.width * 0.64, y: size.height * 0.795))
+            context.stroke(shine, with: .color(.white.opacity(0.65)), lineWidth: 2)
+        }
+    }
+}
+
+/// Warm brown rather than a black/blue veil; the paused course stays visible.
 struct HoneyModalBackdrop: View {
     let accent: Color
     var opacity: Double = 1
 
     var body: some View {
         ZStack {
-            Color(red: 0.28, green: 0.14, blue: 0.04).opacity(0.48 * opacity)
-            LinearGradient(colors: [HoneyMenuPalette.cream.opacity(0.16 * opacity),
-                                    accent.opacity(0.14 * opacity),
-                                    HoneyMenuPalette.honey.opacity(0.22 * opacity)],
-                           startPoint: .topLeading,
-                           endPoint: .bottomTrailing)
-            HoneyModalMotif()
-                .opacity(0.85 * opacity)
+            HoneyMenuPalette.ink.opacity(0.57 * opacity)
+            LinearGradient(colors: [HoneyMenuPalette.gloss.opacity(0.12 * opacity),
+                                    .clear,
+                                    HoneyMenuPalette.caramel.opacity(0.24 * opacity)],
+                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            HoneyBackdropArtwork().opacity(0.45 * opacity)
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
@@ -127,8 +123,8 @@ struct HoneyModalBackdrop: View {
     }
 }
 
-/// A soft glow behind a menu character, with one honeycomb ring. It keeps the
-/// portrait readable without turning the animal into a pilot.
+/// An embossed beeswax medallion, with small neighbouring cells. The portrait
+/// keeps its footprint; the ornament sits behind it rather than framing a cockpit.
 struct HoneyGlowHalo: View {
     let accent: Color
     let diameter: CGFloat
@@ -136,24 +132,28 @@ struct HoneyGlowHalo: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(RadialGradient(colors: [accent.opacity(0.30),
-                                               HoneyMenuPalette.honey.opacity(0.16),
-                                               .clear],
-                                     center: .center,
-                                     startRadius: 2,
-                                     endRadius: diameter * 0.56))
+                .fill(RadialGradient(colors: [HoneyMenuPalette.honey.opacity(0.28), .clear],
+                                     center: .center, startRadius: 0,
+                                     endRadius: diameter * 0.52))
             HoneycombCell()
-                .stroke(accent.opacity(0.55), lineWidth: 1.6)
-                .frame(width: diameter * 0.78, height: diameter * 0.78)
-            Circle()
-                .stroke(.white.opacity(0.72), lineWidth: 1.2)
-                .frame(width: diameter * 0.58, height: diameter * 0.58)
-            HoneyDrip()
-                .fill(HoneyMenuPalette.honey)
-                .frame(width: max(7, diameter * 0.07),
-                       height: max(11, diameter * 0.11))
-                .shadow(color: HoneyMenuPalette.comb.opacity(0.45), radius: 3)
-                .offset(x: diameter * 0.34, y: diameter * 0.16)
+                .fill(HoneyMenuPalette.creamFill)
+                .overlay {
+                    HoneycombCell().stroke(HoneyMenuPalette.honey.opacity(0.75), lineWidth: 2)
+                }
+                .overlay {
+                    HoneycombCell().inset(by: diameter * 0.035)
+                        .stroke(.white.opacity(0.9), lineWidth: 1.5)
+                }
+                .frame(width: diameter * 0.88, height: diameter * 0.88)
+                .shadow(color: HoneyMenuPalette.caramel.opacity(0.16), radius: 8, y: 5)
+            ForEach(0..<3, id: \.self) { index in
+                HoneycombCell()
+                    .fill(index == 1 ? HoneyMenuPalette.honey : HoneyMenuPalette.gloss)
+                    .overlay { HoneycombCell().stroke(HoneyMenuPalette.comb.opacity(0.5), lineWidth: 1) }
+                    .frame(width: diameter * 0.12, height: diameter * 0.12)
+                    .offset(x: diameter * (index == 1 ? -0.34 : 0.34),
+                            y: diameter * (CGFloat(index) * 0.24 - 0.24))
+            }
         }
         .frame(width: diameter, height: diameter)
         .allowsHitTesting(false)
@@ -161,173 +161,204 @@ struct HoneyGlowHalo: View {
     }
 }
 
-/// A cream card with an amber rim and a small comb in the corner. Typography
-/// stays on the light fill; the honey shows up in the edge and the watermark.
+/// A continuous honey lip with rounded drips. The drips stay near the edges
+/// to keep headings and button labels unobstructed.
+private struct HoneySyrupLip: Shape {
+    func path(in rect: CGRect) -> Path {
+        let base = rect.height * 0.26
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + base))
+        for (position, depth, breadth) in [(0.88, 0.58, 0.018), (0.83, 0.96, 0.014),
+                                           (0.13, 0.67, 0.017), (0.08, 0.44, 0.012)] {
+            let x = rect.minX + rect.width * position
+            let half = min(rect.width * breadth, rect.height * 0.25)
+            let bottom = rect.minY + rect.height * depth
+            path.addLine(to: CGPoint(x: x + half * 1.6, y: rect.minY + base))
+            path.addQuadCurve(to: CGPoint(x: x + half, y: rect.minY + base + half),
+                              control: CGPoint(x: x + half, y: rect.minY + base))
+            path.addLine(to: CGPoint(x: x + half, y: bottom - half))
+            path.addQuadCurve(to: CGPoint(x: x - half, y: bottom - half),
+                              control: CGPoint(x: x, y: bottom + half))
+            path.addLine(to: CGPoint(x: x - half, y: rect.minY + base + half))
+            path.addQuadCurve(to: CGPoint(x: x - half * 1.6, y: rect.minY + base),
+                              control: CGPoint(x: x - half, y: rect.minY + base))
+        }
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + base))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Rounded, opaque cream surfaces and golden pressed selections share the
+/// same rim, inset highlight and shallow lower bevel. No extra layout padding.
+private struct HoneyControlSurface<Surface: InsettableShape>: ViewModifier {
+    let shape: Surface
+    let active: Bool
+    let honeyLip: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .background {
+                shape.fill(active ? HoneyMenuPalette.caramel.opacity(0.72)
+                                  : HoneyMenuPalette.comb.opacity(0.30))
+                    .offset(y: active ? 3 : 2)
+                shape.fill(active ? HoneyMenuPalette.honeyFill : HoneyMenuPalette.creamFill)
+                    .overlay(alignment: .top) {
+                        if honeyLip {
+                            HoneySyrupLip()
+                                .fill(HoneyMenuPalette.honeyFill)
+                                .frame(height: 14)
+                        }
+                    }
+                    .overlay {
+                        shape.inset(by: 2)
+                            .stroke(.white.opacity(active ? 0.45 : 0.85), lineWidth: 1)
+                    }
+                    .overlay {
+                        shape.strokeBorder(active ? HoneyMenuPalette.caramel.opacity(0.58)
+                                                  : HoneyMenuPalette.comb.opacity(0.32),
+                                           lineWidth: active ? 1.3 : 1)
+                    }
+                    .clipShape(shape)
+            }
+            .shadow(color: HoneyMenuPalette.caramel.opacity(active ? 0.16 : 0.06),
+                    radius: active ? 5 : 3, y: 3)
+    }
+}
+
 private struct HoneyMenuPanelModifier: ViewModifier {
     let accent: Color
     let cornerRadius: CGFloat
     let prominent: Bool
 
     func body(content: Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
         content
             .background {
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [.white.opacity(prominent ? 0.94 : 0.86),
-                                 HoneyMenuPalette.gloss.opacity(prominent ? 0.92 : 0.78)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .fill(LinearGradient(
-                                colors: [accent.opacity(prominent ? 0.08 : 0.05),
-                                         .clear,
-                                         HoneyMenuPalette.honey.opacity(prominent ? 0.10 : 0.06)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
+                shape.fill(HoneyMenuPalette.comb.opacity(0.27)).offset(y: prominent ? 4 : 2)
+                shape.fill(HoneyMenuPalette.creamFill)
+                    .overlay(alignment: .bottomTrailing) {
+                        HoneyCombWatermark()
+                            .frame(width: prominent ? 128 : 88, height: prominent ? 92 : 64)
+                            .offset(x: 18, y: 18)
                     }
-                    .overlay(alignment: .topTrailing) {
-                        HoneycombCell()
-                            .fill(HoneyMenuPalette.honey.opacity(0.18))
-                            .frame(width: 108, height: 108)
-                            .offset(x: 34, y: -42)
-                            .clipShape(RoundedRectangle(cornerRadius: cornerRadius,
-                                                       style: .continuous))
+                    .overlay(alignment: .top) {
+                        if prominent {
+                            HoneySyrupLip().fill(HoneyMenuPalette.honeyFill)
+                                .frame(height: 24)
+                                .shadow(color: HoneyMenuPalette.comb.opacity(0.17), radius: 1, y: 2)
+                        }
                     }
                     .overlay {
-                        RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .stroke(
-                                LinearGradient(colors: [.white.opacity(0.96),
-                                                        HoneyMenuPalette.honey.opacity(0.90),
-                                                        accent.opacity(0.72)],
-                                               startPoint: .topLeading,
-                                               endPoint: .bottomTrailing),
-                                lineWidth: prominent ? 2.2 : 1.4
-                            )
+                        shape.inset(by: 3).stroke(.white.opacity(0.8), lineWidth: 1.2)
                     }
+                    .clipShape(shape)
+                    .overlay { shape.strokeBorder(HoneyMenuPalette.comb.opacity(0.46), lineWidth: 1.3) }
             }
-            .shadow(color: HoneyMenuPalette.ink.opacity(prominent ? 0.10 : 0.07),
-                    radius: prominent ? 16 : 12,
-                    y: prominent ? 8 : 6)
-            .shadow(color: accent.opacity(prominent ? 0.16 : 0.10),
-                    radius: prominent ? 18 : 12,
-                    y: 6)
+            .shadow(color: HoneyMenuPalette.ink.opacity(prominent ? 0.13 : 0.07),
+                    radius: prominent ? 16 : 8, y: prominent ? 8 : 4)
+    }
+}
+
+private struct HoneyCombWatermark: View {
+    var body: some View {
+        Canvas { context, size in
+            let radius = size.height * 0.24
+            for column in 0..<3 {
+                for row in 0..<3 {
+                    let x = (CGFloat(column) + (row.isMultiple(of: 2) ? 0 : 0.5)) * radius * sqrt(3) + radius
+                    let y = CGFloat(row) * radius * 1.5
+                    let cell = HoneycombCell().path(in: CGRect(x: x - radius, y: y - radius,
+                                                               width: radius * 2, height: radius * 2))
+                    context.stroke(cell, with: .color(HoneyMenuPalette.comb.opacity(0.08)), lineWidth: 1)
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The same illustrated wooden pot used on the course, at the existing icon
+/// size. Menu counters keep its amber cap instead of flattening it to a blob.
+struct HoneyMenuCurrencyIcon: View {
+    let size: CGFloat
+
+    var body: some View {
+        HoneyPotIllustration(showsShadow: false)
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+struct HoneyPressStyle: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.975 : 1)
+            .offset(y: configuration.isPressed ? 2 : 0)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }
 
 extension View {
-    func honeyMenuPanel(accent: Color,
-                        cornerRadius: CGFloat = 28,
+    func honeyMenuPanel(accent: Color, cornerRadius: CGFloat = 28,
                         prominent: Bool = false) -> some View {
-        modifier(HoneyMenuPanelModifier(accent: accent,
-                                        cornerRadius: cornerRadius,
+        modifier(HoneyMenuPanelModifier(accent: accent, cornerRadius: cornerRadius,
                                         prominent: prominent))
+    }
+
+    func honeyControlSurface<S: InsettableShape>(in shape: S,
+                                                active: Bool = false,
+                                                honeyLip: Bool = false) -> some View {
+        modifier(HoneyControlSurface(shape: shape, active: active, honeyLip: honeyLip))
     }
 }
 
-/// Point-up hex used for combs in the backdrop, panels and level cards.
-struct HoneycombCell: Shape {
+/// Point-up hexagons with an inset, also used by the existing reward cards.
+struct HoneycombCell: InsettableShape {
+    var insetAmount: CGFloat = 0
+
     func path(in rect: CGRect) -> Path {
         let center = CGPoint(x: rect.midX, y: rect.midY)
-        let radius = min(rect.width, rect.height) / 2
+        let radius = max(0, min(rect.width, rect.height) / 2 - insetAmount / cos(.pi / 6))
         var path = Path()
         for index in 0..<6 {
             let angle = (Double(index) * 60 - 90) * .pi / 180
             let point = CGPoint(x: center.x + CGFloat(cos(angle)) * radius,
                                 y: center.y + CGFloat(sin(angle)) * radius)
-            if index == 0 {
-                path.move(to: point)
-            } else {
-                path.addLine(to: point)
-            }
+            if index == 0 { path.move(to: point) } else { path.addLine(to: point) }
         }
         path.closeSubpath()
         return path
     }
+
+    func inset(by amount: CGFloat) -> HoneycombCell {
+        var cell = self
+        cell.insetAmount += amount
+        return cell
+    }
 }
 
-/// A hanging drop. The flat top is the comb it leaves; the curve is the drip.
 struct HoneyDrip: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
         path.move(to: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.maxX - rect.width * 0.18, y: rect.minY))
         path.addQuadCurve(to: CGPoint(x: rect.midX, y: rect.maxY),
-                          control: CGPoint(x: rect.maxX + rect.width * 0.08,
-                                           y: rect.midY))
+                          control: CGPoint(x: rect.maxX + rect.width * 0.08, y: rect.midY))
         path.addQuadCurve(to: CGPoint(x: rect.minX + rect.width * 0.18, y: rect.minY),
-                          control: CGPoint(x: rect.minX - rect.width * 0.08,
-                                           y: rect.midY))
+                          control: CGPoint(x: rect.minX - rect.width * 0.08, y: rect.midY))
         path.closeSubpath()
         return path
     }
 }
 
-/// Leaves from the meadow, plus honeycomb and drips. Positions are fixed so
-/// the field does not jump when SwiftUI redraws a screen.
-private struct HoneyMenuSprinkles: View {
-    let accent: Color
-
-    var body: some View {
-        GeometryReader { proxy in
-            ForEach(0..<14, id: \.self) { index in
-                let x = proxy.size.width * CGFloat((index * 37 + 9) % 100) / 100
-                let y = proxy.size.height * CGFloat((index * 53 + 17) % 100) / 100
-                sprinkle(index)
-                    .rotationEffect(.degrees(index.isMultiple(of: 2)
-                                             ? 0
-                                             : Double(index * 31 - 70)))
-                    .position(x: x, y: y)
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func sprinkle(_ index: Int) -> some View {
-        if index.isMultiple(of: 5) {
-            HoneyDrip()
-                .fill(HoneyMenuPalette.honey.opacity(0.32))
-                .frame(width: 8, height: 14)
-        } else if index.isMultiple(of: 2) {
-            HoneycombCell()
-                .stroke(HoneyMenuPalette.comb.opacity(0.24), lineWidth: 1.2)
-                .background(HoneycombCell().fill(accent.opacity(0.06)))
-                .frame(width: CGFloat(16 + index % 3 * 7),
-                       height: CGFloat(16 + index % 3 * 7))
-        } else {
-            Capsule()
-                .fill(Color(red: 0.48, green: 0.68, blue: 0.34).opacity(0.16))
-                .frame(width: CGFloat(7 + index % 3 * 3),
-                       height: CGFloat(18 + index % 4 * 5))
-        }
-    }
-}
-
-/// Faint combs on the modal veil. They stay large and few so they read as
-/// honeycomb, not as a star field.
-private struct HoneyModalMotif: View {
-    var body: some View {
-        GeometryReader { proxy in
-            ForEach(0..<7, id: \.self) { index in
-                let side = CGFloat(26 + (index % 3) * 18)
-                HoneycombCell()
-                    .stroke(Color.white.opacity(index.isMultiple(of: 2) ? 0.16 : 0.09),
-                            lineWidth: 1.3)
-                    .frame(width: side, height: side)
-                    .position(x: proxy.size.width * CGFloat((index * 41 + 11) % 100) / 100,
-                              y: proxy.size.height * CGFloat((index * 59 + 23) % 100) / 100)
-            }
-        }
-    }
-}
-
-/// Kept so archived promo layouts do not need to change with the live screens.
+/// Compatibility for existing promo compositions.
 struct MenuPolarBackground: View {
     let accent: Color
-
-    var body: some View {
-        HoneyMenuBackground(accent: accent)
-    }
+    var body: some View { HoneyMenuBackground(accent: accent) }
 }
