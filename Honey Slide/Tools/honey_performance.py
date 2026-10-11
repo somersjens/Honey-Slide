@@ -21,6 +21,7 @@ parser.add_argument("--samples", type=int, default=24)
 parser.add_argument("--compile-only", action="store_true", help="Leave the compiled runner for Instruments")
 parser.add_argument("--simulator-app", action="store_true", help="Build an isolated 32-second iOS simulator workload")
 parser.add_argument("--assets", type=pathlib.Path, help="Existing simulator app containing Assets.car")
+parser.add_argument("--idle-course", action="store_true", help="Leave the isolated simulator rider unattended to inspect straight travel and rail sliding")
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
 source = (args.source_dir / "HoneySlidePlayfield.swift").read_text()
@@ -109,25 +110,54 @@ private struct BenchmarkScene: View {
         let samples = Int(CommandLine.arguments[2])!
         let bear = NSImage(contentsOfFile: CommandLine.arguments[3])!
         var report: [[String: Any]] = []
-        for (scenario, time, correct) in [("approach", 5.5, true), ("correct", 6.7, true), ("wrong", 6.7, false), ("bend", 25.4, true)] {
-            let engine = MemoryGame(level: MathLevel(topic: .addition, index: 6), seed: 79)
-            _ = engine.start(); _ = engine.turnCardsOver(); _ = engine.beginAnswering()
-            var initial = HoneySlideSimulation()
-            initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
-            while initial.elapsed < time {
-                if let row = initial.activeCheckpoint, let index = row.options.firstIndex(where: { $0.isCorrect == correct }) {
-                    initial.targetLateral = Double(index - 1) * HoneySlideRules.laneSpacing
-                }
-                initial.advance(seconds: 1.0 / 120)
-                if let round = engine.round, let hit = initial.crossing(roundID: round.id) {
-                    initial.markSelected(checkpointID: hit.checkpointID, index: hit.index, correct: hit.option.isCorrect)
-                    _ = engine.select(optionID: hit.option.id); _ = engine.finishResolving(); engine.advance()
-                    _ = engine.turnCardsOver(); _ = engine.beginAnswering()
-                    initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+        var scenarios = [("approach", 5.5, true), ("correct", 6.7, true), ("wrong", 6.7, false)]
+        for (index, bend) in HoneySlideCourse.preview.bends.prefix(2).enumerated() {
+            let time = (bend.start + bend.length * 0.80 - HoneySlideRules.playerAhead) / HoneySlideRules.forwardSpeed
+            scenarios.append((bend.direction < 0 ? "bend-left" : "bend-right", time, true))
+            let railTime = (HoneySlideCourse.preview.bends[index + 1].start - HoneySlideRules.playerAhead)
+                / HoneySlideRules.forwardSpeed - 0.20
+            scenarios.append((bend.direction < 0 ? "exit-left" : "exit-right", railTime, true))
+            if index == 1 {
+                for fraction in [0.15, 0.50, 0.95] {
+                    let reversalTime = (bend.start + bend.length * fraction - HoneySlideRules.playerAhead)
+                        / HoneySlideRules.forwardSpeed
+                    scenarios.append(("reversal-\(Int(fraction * 100))", reversalTime, true))
                 }
             }
+        }
+        if let index = HoneySlideCourse.preview.bends.indices.dropFirst().first(where: {
+            let bends = HoneySlideCourse.preview.bends
+            return bends[$0].direction != 0 && bends[$0].direction == bends[$0 - 1].direction
+        }) {
+            let bend = HoneySlideCourse.preview.bends[index]
+            scenarios.append(("continuing-arc", (bend.start + bend.length * 0.6 - HoneySlideRules.playerAhead)
+                / HoneySlideRules.forwardSpeed, true))
+        }
+        if let bend = HoneySlideCourse.preview.bends.first(where: { $0.direction == 0 }) {
+            scenarios.append(("long-straight", (bend.start + bend.length * 0.5 - HoneySlideRules.playerAhead)
+                / HoneySlideRules.forwardSpeed, true))
+        }
+        for (scenario, time, correct) in scenarios {
             for phone in [true, false] {
                 let size = phone ? CGSize(width: 852, height: 393) : CGSize(width: 1194, height: 834)
+                let engine = MemoryGame(level: MathLevel(topic: .addition, index: 6), seed: 79)
+                _ = engine.start(); _ = engine.turnCardsOver(); _ = engine.beginAnswering()
+                var initial = HoneySlideSimulation(courseSeed: 42)
+                initial.configureViewport(size)
+                initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+                while initial.elapsed < time {
+                    if ["approach", "correct", "wrong"].contains(scenario), let row = initial.activeCheckpoint,
+                       let index = row.options.firstIndex(where: { $0.isCorrect == correct }) {
+                        initial.steer(to: Double(index - 1) * HoneySlideRules.laneSpacing)
+                    }
+                    initial.advance(seconds: 1.0 / 120)
+                    if let round = engine.round, let hit = initial.crossing(roundID: round.id) {
+                        initial.markSelected(checkpointID: hit.checkpointID, index: hit.index, correct: hit.option.isCorrect)
+                        _ = engine.select(optionID: hit.option.id); _ = engine.finishResolving(); engine.advance()
+                        _ = engine.turnCardsOver(); _ = engine.beginAnswering()
+                        initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+                    }
+                }
                 var sim = initial
                 let renderer = ImageRenderer(content: BenchmarkScene(simulation: sim, phone: phone, bear: bear).frame(width: size.width, height: size.height))
                 renderer.scale = 2
@@ -159,6 +189,7 @@ private struct BenchmarkScene: View {
                     return ["mean_ms": sorted.reduce(0, +) / Double(sorted.count), "median_ms": sorted[sorted.count / 2], "p95_ms": sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.95))], "max_ms": sorted.last!]
                 }
                 let result: [String: Any] = ["scenario": scenario, "viewport": phone ? "phone" : "pad", "samples": samples,
+                    "lateral": sim.lateral, "rail_contact": sim.railContact, "travel_slope": sim.travelSlope,
                     "offscreen": stats(frameTimes), "sections": sections.mapValues(stats), "counts_per_frame": countTotals.mapValues { Double($0) / Double(samples) }]
                 report.append(result)
                 print("\(phone ? "phone" : "pad") \(scenario): \(stats(frameTimes)) sections \(sections.mapValues { $0.reduce(0,+) / Double($0.count) })")
@@ -238,19 +269,21 @@ final class CadenceStatistics {
     }
 }
 struct PerformanceHost: View {
-    @State private var sim = HoneySlideSimulation()
+    @State private var sim = HoneySlideSimulation(courseSeed: 42)
     @State private var previous: Double?
     @State private var finished = false
     @State private var missed = ""
     let engine = MemoryGame(level: MathLevel(topic: .addition, index: 6), seed: 79)
     let cadence = CadenceStatistics()
     let bear = UIImage(named: "1_bear")!
+    let idleCourse = IDLE_COURSE
     // CLOCK_DECLARATION
     var body: some View {
         BenchmarkScene(simulation: sim, phone: UIDevice.current.userInterfaceIdiom == .phone, bear: bear,
             prompt: engine.round?.question.prompt ?? "…", score: max(0, engine.cards - sim.pendingHoney), missedChallenge: missed)
             .ignoresSafeArea()
             .onAppear {
+                sim.configureViewport(UIScreen.main.bounds.size)
                 _ = engine.start(); _ = engine.turnCardsOver(); _ = engine.beginAnswering()
                 sim.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
             }
@@ -262,9 +295,9 @@ struct PerformanceHost: View {
         let dt = max(0, timestamp - last)
         previous = timestamp
         if sim.elapsed > 2 { cadence.intervals.append(dt * 1000) }
-        if let row = sim.activeCheckpoint,
+        if !idleCourse, let row = sim.activeCheckpoint,
            let lane = row.options.firstIndex(where: { $0.isCorrect == (engine.completedQuestions % 3 != 1) }) {
-            sim.targetLateral = Double(lane - 1) * HoneySlideRules.laneSpacing
+            sim.steer(to: Double(lane - 1) * HoneySlideRules.laneSpacing)
         }
         sim.advance(seconds: dt)
         if let round = engine.round, let hit = sim.crossing(roundID: round.id) {
@@ -287,6 +320,7 @@ class PerformanceDelegate: NSObject, UIApplicationDelegate {
     var body: some Scene { WindowGroup { PerformanceHost() } }
 }
 '''
+    driver = driver.replace("IDLE_COURSE", "true" if args.idle_course else "false")
     if "private struct HoneyDisplayClock:" in source:
         driver = driver.replace("// CLOCK_DECLARATION", "")
         driver = driver.replace("// CLOCK_CALLBACK", ".background(HoneyDisplayClock(running: !finished) { advance($0) })")
@@ -304,6 +338,8 @@ with tempfile.TemporaryDirectory(prefix="honey-benchmark-") as temporary:
     rules = next(f for f in core if f.name == "HoneySlideRules.swift")
     rule_source = rules.read_text()
     for function in ["trackPoint", "course"]:
+        if "static func " + function + "(" not in rule_source:
+            continue
         start = rule_source.index("{", rule_source.index("static func " + function + "(")) + 1
         rule_source = rule_source[:start] + f'\n        RenderBenchmark.count("exact_{function}")\n' + rule_source[start:]
     instrumented_rules = tmp / "HoneySlideRules.swift"

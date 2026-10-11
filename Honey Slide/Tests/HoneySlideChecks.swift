@@ -6,15 +6,19 @@ import CoreGraphics
         checkContinuousCheckpoints()
         checkFixedQuestionSessions()
         checkSteering()
+        checkGeneratedTurns()
+        checkStraightTravelAndRails()
+        checkIdleCheckpoints()
         checkDividerChannels()
         checkProjection()
+        checkFixedWidthRails()
         checkAnswerLayout()
         checkCameraPassage()
         checkImpactLifecycle()
         checkCollectionMotion()
         checkStraightLandings()
         checkCachedProjection()
-        print("PASS: continuous course and camera passage, straight checkpoint landings with stable dividers, contact-owned pot impacts and delayed Honey collection, collision-timed shutters, fixed-question sessions and ±1 scoring, constant travel, tap steering, ten-minute projection and undistorted pot proportions")
+        print("PASS: rounded, irregular course shapes, straight unattended travel, rail release at opposite turns and fixed-width verges, consistent slow-frame physics, continuous camera passage, straight checkpoint landings with stable dividers, pot impacts and Honey collection, fixed-question sessions and ±1 scoring, ten-minute projection and undistorted pot proportions")
     }
 
     private static func checkCollectionMotion() {
@@ -80,12 +84,13 @@ import CoreGraphics
         // two lookup-grid boundaries and the exact near-camera fallback.
         for frame in 0..<200 {
             let elapsed = Double(frame) * 3.017
-            let projection = HoneySlideProjection(elapsed: elapsed)
+            let course = HoneySlideCourse(seed: UInt64(frame % 8), initialSegments: 128)
+            let projection = HoneySlideProjection(elapsed: elapsed, course: course)
             for index in 0..<1300 {
                 let depth = (Double(index) + 0.314) / 1000
                 for offset in [-4.0, -1, 0, 1, 4] {
                     let actual = projection.point(depth: depth, offset: offset)
-                    let exact = HoneySlideRules.trackPoint(depth: depth, offset: offset, distance: elapsed)
+                    let exact = HoneySlideRules.trackPoint(depth: depth, offset: offset, distance: elapsed, course: course)
                     let error = max(abs(actual.x - exact.x), abs(actual.y - exact.y))
                     maximumError = max(maximumError, error)
                     assert(error < 0.5, "Projection cache changed a visible position: \(error)")
@@ -93,7 +98,7 @@ import CoreGraphics
             }
             for depth in [0.0, 1.3, 1.30001, 2, 12] {
                 let actual = projection.point(depth: depth, offset: 1)
-                let exact = HoneySlideRules.trackPoint(depth: depth, offset: 1, distance: elapsed)
+                let exact = HoneySlideRules.trackPoint(depth: depth, offset: 1, distance: elapsed, course: course)
                 assert(abs(actual.x - exact.x) < 0.5 && abs(actual.y - exact.y) < 0.5)
             }
         }
@@ -105,7 +110,7 @@ import CoreGraphics
         let frameTimes = [1.0 / 60, 1.0 / 30, 0.087, 0.12, 1.0 / 120]
         for topic in [MathTopic.addition, .subtraction, .tables, .fractions, .percentages, .mixed] {
             let engine = MemoryGame(level: MathLevel(topic: topic, index: 3), seed: 42)
-            var ride = HoneySlideSimulation()
+            var ride = HoneySlideSimulation(courseSeed: 42)
             assert(engine.start())
             assert(engine.turnCardsOver()); assert(engine.beginAnswering())
             ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
@@ -119,7 +124,7 @@ import CoreGraphics
                 assert(row.options.filter(\.isCorrect).count == 1)
                 let correctIndex = row.options.firstIndex(where: \.isCorrect)!
                 correctPositions.insert(correctIndex)
-                ride.targetLateral = Double(correctIndex - 1) * 0.66
+                ride.steer(to: Double(correctIndex - 1) * 0.66)
                 let preview = ride.checkpoints.filter { $0.selectedIndex == nil && $0.id != row.id }
                 assert(preview.allSatisfy { $0.revealedAt == nil && $0.shutterProgress(at: ride.elapsed) == 0 })
                 let initialZ = row.worldPosition
@@ -172,7 +177,7 @@ import CoreGraphics
             // A mistake costs one point and promotes the already-existing next question.
             let row = ride.activeCheckpoint!
             let wrongIndex = row.options.firstIndex { !$0.isCorrect }!
-            ride.targetLateral = Double(wrongIndex - 1) * 0.66
+            ride.steer(to: Double(wrongIndex - 1) * 0.66)
             while ride.distance + HoneySlideRules.playerAhead < row.worldPosition {
                 ride.advance(seconds: 1.0 / 60)
             }
@@ -201,7 +206,7 @@ import CoreGraphics
         // enters beyond the draw distance rather than appearing mid-course.
         for stage in 1...5 {
             let engine = MemoryGame(level: MathLevel(topic: .addition, index: 1), seed: 7)
-            var ride = HoneySlideSimulation()
+            var ride = HoneySlideSimulation(courseSeed: 42)
             assert(engine.start()); assert(engine.turnCardsOver()); assert(engine.beginAnswering())
             ride.synchronize(rounds: engine.visibleRounds, stage: stage, acceptingInput: true)
             let first = ride.activeCheckpoint!
@@ -274,7 +279,7 @@ import CoreGraphics
     }
 
     private static func checkSteering() {
-        var ride = HoneySlideSimulation()
+        var ride = HoneySlideSimulation(courseSeed: 42)
         ride.press(1); ride.release()
         for _ in 0..<60 { ride.advance(seconds: 1.0 / 120) }
         assert(ride.lateral > 0.57 && ride.lateral < 0.72)
@@ -283,9 +288,9 @@ import CoreGraphics
         assert(abs(ride.lateral) < 0.1)
         ride.press(-1)
         for _ in 0..<120 { ride.advance(seconds: 1.0 / 120) }
-        assert(ride.lateral < -0.70 && ride.lateral >= -0.80)
+        assert(ride.lateral < -0.70 && ride.lateral >= -ride.railLimit)
         ride.release()
-        ride.targetLateral = 0.66
+        ride.steer(to: 0.66)
         for _ in 0..<120 { ride.advance(seconds: 1.0 / 120) }
         assert(ride.lateral > 0.60)
         for elapsed in stride(from: 0.0, through: 600, by: 3) {
@@ -299,21 +304,196 @@ import CoreGraphics
             }
         }
         assert(HoneySlideRules.steeringTarget(at: CGPoint(x: 800, y: 50), elapsed: 0) == nil)
-        var slow = HoneySlideSimulation(), fast = HoneySlideSimulation()
+        var slow = HoneySlideSimulation(courseSeed: 42), fast = HoneySlideSimulation(courseSeed: 42)
         slow.advance(seconds: 0.25)
         for _ in 0..<30 { fast.advance(seconds: 1.0 / 120) }
         assert(abs(slow.distance - fast.distance) < 0.000001)
+    }
+
+    private static func checkGeneratedTurns() {
+        var shapes = Set<String>()
+        var sawContinuingTurn = false
+        var sawStraight = false
+        var angles = Set<Int>()
+        for seed in 0..<16 {
+            var course = HoneySlideCourse(seed: UInt64(seed))
+            let repeated = HoneySlideCourse(seed: UInt64(seed))
+            let original = course.bends
+            for (i, bend) in original.enumerated() {
+                let other = repeated.bends[i]
+                assert(bend.start == other.start && bend.length == other.length && bend.endSlope == other.endSlope)
+                if i > 0, bend.direction != 0, bend.direction == original[i - 1].direction {
+                    sawContinuingTurn = true
+                }
+                if bend.direction == 0 { sawStraight = true }
+                assert(bend.length >= 600 && bend.length <= 850)
+                let angle = abs(atan(bend.endSlope) - atan(bend.startSlope)) * 180 / .pi
+                angles.insert(Int(angle))
+                assert(angle <= 75.000001 && abs(atan(bend.endSlope)) <= 55.000001 * .pi / 180)
+                for fraction in [0.1, 0.3, 0.5, 0.7, 0.9] {
+                    let z = bend.start + bend.length * fraction
+                    let rate = course.sample(at: z).turnRate
+                    assert(bend.direction == 0 ? rate == 0 : rate * bend.direction > 0)
+                    // The visible bend retains its direction, including the
+                    // foreground formerly flattened to a straight strip.
+                    let elapsed = (z - HoneySlideRules.playerAhead) / HoneySlideRules.forwardSpeed
+                    for depth in [0.48, HoneySlideRules.playerDepth] {
+                        let center = HoneySlideRules.trackPoint(depth: depth, offset: 0, distance: elapsed, course: course)
+                        if bend.direction != 0 { assert((center.x - 800) * bend.direction > 0) }
+                        for lane in [-0.66, 0, 0.66] {
+                            let touch = HoneySlideRules.ridingPoint(depth: depth, lateral: lane, distance: elapsed, course: course)
+                            let target = HoneySlideRules.steeringTarget(at: touch, elapsed: elapsed, course: course)!
+                            assert(abs(target - lane) < 0.000001)
+                        }
+                    }
+                }
+            }
+            shapes.insert(original.prefix(8).map { "\($0.start):\($0.length):\($0.endSlope)" }.joined(separator: ","))
+            course.extend(through: 200_000)
+            for (i, bend) in original.enumerated() {
+                assert(course.bends[i].start == bend.start && course.bends[i].endSlope == bend.endSlope)
+                assert(course.bends[i].startX == bend.startX)
+            }
+        }
+        assert(shapes.count == 16 && sawContinuingTurn && sawStraight && angles.count > 15,
+               "Generated courses still follow one repeating zigzag pattern")
+        let firstRun = HoneySlideSimulation(), secondRun = HoneySlideSimulation()
+        assert(firstRun.course.seed != secondRun.course.seed)
+    }
+
+    private static func checkIdleCheckpoints() {
+        // Actual answer guides must not trap the rider at its first outside
+        // rail or recenter it. Rounded corners can also pass through the middle.
+        for seed in 0..<8 {
+            var ride = HoneySlideSimulation(courseSeed: UInt64(seed))
+            let engine = MemoryGame(level: MathLevel(topic: .addition, index: 1), seed: 71)
+            assert(engine.start()); assert(engine.turnCardsOver()); assert(engine.beginAnswering())
+            ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+            var visited = Set<Int>()
+            for _ in 0..<10 {
+                let round = engine.round!
+                while ride.crossing(roundID: round.id) == nil {
+                    ride.advance(seconds: 1.0 / 60)
+                    assert(ride.heldDirection == 0 && ride.steeringVelocity == 0)
+                }
+                let hit = ride.crossing(roundID: round.id)!
+                visited.insert(hit.index)
+                assert(hit.index >= 0 && hit.index <= 2)
+                ride.markSelected(checkpointID: hit.checkpointID, index: hit.index, correct: hit.option.isCorrect)
+                assert(engine.select(optionID: hit.option.id) != .ignored)
+                assert(engine.finishResolving()); engine.advance()
+                assert(engine.turnCardsOver()); assert(engine.beginAnswering())
+                ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+            }
+            assert(visited.contains(0) && visited.contains(2),
+                   "Varied course never released its idle rider from one outside lane")
+            assert(engine.completedQuestions == 10)
+        }
+    }
+
+    private static func checkStraightTravelAndRails() {
+        for seed in 0..<16 {
+            var idle = HoneySlideSimulation(courseSeed: UInt64(seed))
+            let bends = idle.course.bends
+            let firstSide = -bends[0].direction
+            let firstEnd = (bends[1].start - HoneySlideRules.playerAhead) / HoneySlideRules.forwardSpeed - 0.01
+            let initialWorldX = idle.riderWorldX
+            var hitRail = false
+            var ridingRailFrames = 0
+            while idle.elapsed < firstEnd {
+                let previous = idle.lateral, heading = idle.tubeHeading
+                idle.advance(seconds: min(1.0 / 120, firstEnd - idle.elapsed))
+                assert(abs(idle.lateral - previous) < 0.02)
+                assert(abs(idle.tubeHeading - heading) < 1)
+                assert(abs(idle.tubeHeading) <= 16)
+                assert(idle.targetLateral == 0 && idle.steeringVelocity == 0)
+                if !hitRail && idle.railContact == 0 {
+                    assert(abs(idle.riderWorldX - initialWorldX) < 0.000001,
+                           "Idle rider steered before making contact with a wall")
+                    assert(idle.travelSlope == 0 && idle.tubeHeading == 0)
+                }
+                if idle.railContact != 0 { hitRail = true }
+                if hitRail {
+                    assert(abs(idle.lateral - firstSide * idle.railLimit) < 0.000001,
+                           "Rider left the outside rail without steering")
+                    ridingRailFrames += 1
+                }
+            }
+            assert(hitRail && ridingRailFrames > 30)
+            let reversal = bends.indices.dropFirst().first { bends[$0].direction == -bends[0].direction }!
+            let secondEnd = (bends[reversal + 1].start - HoneySlideRules.playerAhead) / HoneySlideRules.forwardSpeed - 0.01
+            var leftFirstRail = false
+            var lastSlope = idle.travelSlope
+            while idle.elapsed < secondEnd {
+                let dt = min(1.0 / 120, secondEnd - idle.elapsed)
+                let previousX = idle.riderWorldX
+                let previousSlope = idle.travelSlope
+                idle.advance(seconds: dt)
+                if idle.railContact == 0 {
+                    leftFirstRail = true
+                    // Detachment restores the existing straight trajectory;
+                    // it does not apply an automatic target on the other side.
+                    assert(abs(idle.travelSlope - previousSlope) < 0.000001)
+                    assert(abs(idle.riderWorldX - previousX - previousSlope * HoneySlideRules.forwardSpeed * dt) < 0.000001)
+                    assert(abs(idle.travelSlope - lastSlope) < 0.000001)
+                } else {
+                    lastSlope = idle.travelSlope
+                }
+                assert(idle.steeringVelocity == 0 && idle.targetLateral == 0)
+            }
+            assert(leftFirstRail && idle.lateral * firstSide < idle.railLimit - 0.10,
+                   "Opposite corner failed to release the rider from its rail")
+
+            // Steering away from a contacted rail must work immediately.
+            idle.steer(to: 0)
+            idle.advance(seconds: 0.8)
+            assert(abs(idle.lateral) < 0.03 && idle.railContact == 0)
+            let pausedLateral = idle.lateral, pausedHeading = idle.tubeHeading
+            idle.advance(seconds: 0)
+            assert(idle.lateral == pausedLateral && idle.tubeHeading == pausedHeading)
+
+            var released = HoneySlideSimulation(courseSeed: UInt64(seed))
+            released.steer(to: 0)
+            released.advance(seconds: 1)
+            released.release()
+            released.advance(seconds: firstEnd - 1)
+            assert(abs(released.lateral - firstSide * released.railLimit) < 0.000001)
+            var keyboard = HoneySlideSimulation(courseSeed: UInt64(seed))
+            keyboard.press(bends[0].direction)
+            keyboard.advance(seconds: firstEnd)
+            assert(keyboard.lateral * bends[0].direction > 0.60)
+
+            // A slow frame traverses the same bend and wall contact as fast frames.
+            var slow = HoneySlideSimulation(courseSeed: UInt64(seed))
+            var fast = HoneySlideSimulation(courseSeed: UInt64(seed))
+            slow.advance(seconds: 10)
+            for _ in 0..<1200 { fast.advance(seconds: 1.0 / 120) }
+            assert(abs(slow.distance - fast.distance) < 0.000001)
+            assert(abs(slow.lateral - fast.lateral) < 0.000001)
+            assert(abs(slow.tubeHeading - fast.tubeHeading) < 0.000001)
+        }
+        // The tube's footprint changes with phone/tablet aspect ratio. Its edge
+        // must meet the same projected rail, without hiding the rider offscreen.
+        for size in [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834)] {
+            var ride = HoneySlideSimulation(courseSeed: 42)
+            ride.configureViewport(size)
+            let spriteWidth = min(size.width * 0.285, size.height * 0.43) / size.width * 1600
+            let contact = ride.railLimit * HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth)
+            let rail = HoneySlideRules.trackHalfWidth(depth: HoneySlideRules.playerDepth)
+            assert(abs(rail - contact - spriteWidth * 0.46 - HoneySlideRules.railClearance) < 0.000001)
+            assert(800 + contact + spriteWidth / 2 < 1640)
+        }
     }
 
     private static func checkImpactLifecycle() {
         for correct in [true, false] {
             let engine = MemoryGame(level: MathLevel(topic: .addition, index: 1), seed: 71)
             assert(engine.start()); assert(engine.turnCardsOver()); assert(engine.beginAnswering())
-            var ride = HoneySlideSimulation()
+            var ride = HoneySlideSimulation(courseSeed: 42)
             ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
             let row = ride.activeCheckpoint!
             let index = row.options.firstIndex { $0.isCorrect == correct }!
-            ride.targetLateral = Double(index - 1) * HoneySlideRules.laneSpacing
+            ride.steer(to: Double(index - 1) * HoneySlideRules.laneSpacing)
             while ride.crossing(roundID: row.roundID!) == nil { ride.advance(seconds: 1.0 / 120) }
             let depth = HoneySlideRules.depth(ahead: row.worldPosition - ride.distance)
             let origin = HoneySlideRules.ridingPoint(depth: depth, lateral: Double(index - 1) * 0.66, distance: ride.elapsed)
@@ -359,29 +539,34 @@ import CoreGraphics
     }
 
     private static func checkStraightLandings() {
+        let course = HoneySlideCourse.preview
         for index in 0..<100 {
             let row = HoneySlideRules.firstCheckpointPosition + Double(index) * HoneySlideRules.checkpointSpacing
-            let anchor = HoneySlideRules.course(row)
-            for dz in stride(from: -349.0, through: 349, by: 13) {
-                assert(abs(HoneySlideRules.course(row + dz) - anchor) < 0.000001)
-                assert(HoneySlideRules.courseSlope(row + dz) == 0)
+            let anchor = course.sample(at: row)
+            for dz in stride(from: -349.0, through: 279, by: 13) {
+                let sample = course.sample(at: row + dz)
+                assert(abs(sample.x - anchor.x - anchor.slope * dz) < 0.000001)
+                assert(abs(sample.slope - anchor.slope) < 0.000001 && sample.turnRate == 0)
             }
             for camera in stride(from: row - HoneySlideRules.playerAhead - HoneySlideRules.dividerLead,
-                                 through: row + 300, by: 17) {
+                                 through: row + 250, by: 17) {
                 for block in 0..<HoneySlideRules.dividerSections {
                     let segment = HoneySlideRules.dividerSegment(rowPosition: row, index: block)
                     for z in [segment.far, segment.near] where z - camera > HoneySlideRules.nearClipAhead {
                         let depth = HoneySlideRules.depth(ahead: z - camera)
                         let center = HoneySlideRules.trackPoint(depth: depth, offset: 0,
-                            distance: camera / HoneySlideRules.forwardSpeed)
+                            distance: camera / HoneySlideRules.forwardSpeed, course: course)
                         assert(abs(center.x - 800) < 0.000001)
                     }
                 }
             }
-            // Smooth joins keep banks/scenery from jumping on entering a bend.
-            for edge in [row - 350, row + 350] {
-                assert(abs(HoneySlideRules.course(edge + 0.1) - HoneySlideRules.course(edge - 0.1)) < 0.001)
-                assert(abs(HoneySlideRules.courseSlope(edge + 0.1) - HoneySlideRules.courseSlope(edge - 0.1)) < 0.001)
+        }
+        for bend in course.bends {
+            for edge in [bend.start, bend.end] {
+                let before = course.sample(at: edge - 0.0001), after = course.sample(at: edge + 0.0001)
+                assert(abs(after.x - before.x) < 0.003)
+                assert(abs(after.slope - before.slope) < 0.000001)
+                assert(abs(after.turnRate - before.turnRate) < 0.000001)
             }
         }
     }
@@ -390,10 +575,10 @@ import CoreGraphics
         let engine = MemoryGame(level: MathLevel(topic: .addition, index: 1), mode: .order, seed: 9)
         assert(engine.start()); assert(engine.turnCardsOver()); assert(engine.beginAnswering())
         for start in [-0.66, -0.40, -0.331, -0.32, -0.06, 0.06, 0.32, 0.331, 0.40, 0.66] {
-            var ride = HoneySlideSimulation()
+            var ride = HoneySlideSimulation(courseSeed: 42)
             ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
             let row = ride.activeCheckpoint!
-            ride.targetLateral = start
+            ride.steer(to: start)
             let entersAt = (row.worldPosition - HoneySlideRules.playerAhead - HoneySlideRules.dividerLead)
                 / HoneySlideRules.forwardSpeed
             while ride.elapsed + 1.0 / 120 < entersAt {
@@ -411,7 +596,7 @@ import CoreGraphics
             let center = Double(nearest - 1) * 0.66
             while ride.crossing(roundID: row.roundID!) == nil {
                 // A late tap, drag, or held key cannot cut across a wall.
-                ride.targetLateral = nearest == 2 ? -0.78 : 0.78
+                ride.steer(to: nearest == 2 ? -0.78 : 0.78)
                 ride.press(nearest == 2 ? -1 : 1)
                 ride.advance(seconds: 1.0 / 60)
                 assert(ride.activeCheckpoint!.guidedLane == nearest)
@@ -424,7 +609,7 @@ import CoreGraphics
             ride.markSelected(checkpointID: row.id, index: hit.index, correct: hit.option.isCorrect)
             assert(ride.activeCheckpoint!.guidedLane == nil)
             ride.release()
-            ride.targetLateral = nearest == 2 ? -0.66 : 0.66
+            ride.steer(to: nearest == 2 ? -0.66 : 0.66)
             for _ in 0..<80 { ride.advance(seconds: 1.0 / 120) }
             assert(abs(ride.lateral - ride.targetLateral) < 0.03)
         }
@@ -454,17 +639,19 @@ import CoreGraphics
             assert(left.x < 0 && right.x > 1600 && left.y > 900)
             let midLeft = HoneySlideRules.trackPoint(depth: 0.48, offset: -1, distance: second)
             let midRight = HoneySlideRules.trackPoint(depth: 0.48, offset: 1, distance: second)
-            assert(midLeft.x > 0 && midRight.x < 1600)
+            assert(midLeft.x < 1600 && midRight.x > 0)
             let now = HoneySlideRules.trackPoint(depth: 0.2, offset: 0, distance: second)
             let next = HoneySlideRules.trackPoint(depth: 0.2, offset: 0, distance: second + 1.0 / 60)
-            assert(now.x.isFinite && abs(next.x - now.x) < 6)
-            var priorLeft = 800.0, priorRight = 800.0
+            // Sharper corners move the distant view faster, continuously.
+            assert(now.x.isFinite && abs(next.x - now.x) < 18)
+            var priorSpread = 0.0
             for depth in stride(from: 0.55, through: HoneySlideRules.playerDepth, by: 0.01) {
                 let center = HoneySlideRules.ridingPoint(depth: depth, lateral: 0, distance: second)
                 let left = HoneySlideRules.ridingPoint(depth: depth, lateral: -0.66, distance: second)
                 let right = HoneySlideRules.ridingPoint(depth: depth, lateral: 0.66, distance: second)
-                assert(center.x == 800 && left.x < priorLeft && right.x > priorRight)
-                priorLeft = left.x; priorRight = right.x
+                assert(left.x < center.x && right.x > center.x)
+                assert(right.x - left.x > priorSpread)
+                priorSpread = right.x - left.x
             }
             for depth in [0.1, 0.2, 0.4, 0.84] {
                 let center = HoneySlideRules.trackPoint(depth: depth, offset: 0, distance: second)
@@ -475,15 +662,54 @@ import CoreGraphics
         }
     }
 
+    private static func checkFixedWidthRails() {
+        // Perspective must project the same physical width at every distance.
+        // In particular, the visible foreground cannot have a bulge or pinch
+        // that travels along the verges when the camera advances.
+        for seed in 0..<8 {
+            let course = HoneySlideCourse(seed: UInt64(seed), initialSegments: 128)
+            for elapsed in stride(from: 0.0, through: 600, by: 1.3) {
+                for ahead in [20.0, 80, 240, 480, 900, 1800, 4000] {
+                    let depth = HoneySlideRules.depth(ahead: ahead)
+                    let left = HoneySlideRules.trackPoint(depth: depth, offset: -1, distance: elapsed, course: course)
+                    let right = HoneySlideRules.trackPoint(depth: depth, offset: 1, distance: elapsed, course: course)
+                    let halfWidth = (right.x - left.x) / (2 * depth * HoneySlideRules.projectionScale)
+                    assert(abs(halfWidth - HoneySlideRules.trackWorldHalfWidth) < 0.000001)
+                    let camera = course.sample(at: HoneySlideRules.worldDistance(elapsed))
+                    let vertex = course.sample(at: HoneySlideRules.worldDistance(elapsed) + ahead)
+                    let expectedCenter = 800 + (vertex.x - camera.x - camera.slope * ahead)
+                        * depth * HoneySlideRules.projectionScale
+                    assert(abs((left.x + right.x) / 2 - expectedCenter) < 0.000001,
+                           "A bend was deformed independently of its fixed world geometry")
+                }
+            }
+            for row in 1..<20 {
+                let landing = HoneySlideRules.playerAhead + Double(row) * HoneySlideRules.checkpointSpacing
+                let elapsed = (landing - 300) / HoneySlideRules.forwardSpeed
+                for side in [-1.0, 1.0] {
+                    let points = [100.0, 200, 300, 400, 500].map {
+                        HoneySlideRules.trackPoint(depth: HoneySlideRules.depth(ahead: $0),
+                            offset: side, distance: elapsed, course: course)
+                    }
+                    let a = points.first!, b = points.last!
+                    for p in points.dropFirst().dropLast() {
+                        let cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)
+                        assert(abs(cross) < 0.000001,
+                               "Straight rail bulges despite unchanged world geometry")
+                    }
+                }
+            }
+        }
+    }
+
     private static func checkAnswerLayout() {
         let contact = HoneySlideRules.answerScale(depth: HoneySlideRules.playerDepth)
         let riderWidth = min(1600 * 0.285, 900 * 0.43)
         assert((154 * contact / riderWidth) > 0.74 && (154 * contact / riderWidth) < 0.80)
         assert(HoneySlideRules.answerScale(depth: 0.1) < 0.24)
         assert(HoneySlideRules.answerScale(depth: 0.2) < 0.48)
-        // Check every bend over ten minutes, including shadows and honey caps.
-        // The full contact row fits the viewport, and all three targets have
-        // a visible gap even before they reach the player.
+        // Pots retain clear gaps through every bend. A distant row can go
+        // around the corner; the real answer landing must remain fully visible.
         for second in stride(from: 0.0, through: 600.0, by: 0.5) {
             for depth in [0.08, 0.1, 0.2, 0.4, 0.6, HoneySlideRules.playerDepth] {
                 let centers = [-0.66, 0, 0.66].map {
@@ -492,8 +718,28 @@ import CoreGraphics
                 let fullWidth = 154 * HoneySlideRules.answerScale(depth: depth)
                 assert(centers[1] - centers[0] > fullWidth)
                 assert(centers[2] - centers[1] > fullWidth)
-                assert(centers[0] - fullWidth / 2 > 0)
-                assert(centers[2] + fullWidth / 2 < 1600)
+                if depth >= HoneySlideRules.playerDepth {
+                    assert(centers[0] - fullWidth / 2 > 0)
+                    assert(centers[2] + fullWidth / 2 < 1600)
+                }
+            }
+        }
+        for seed in 0..<16 {
+            let course = HoneySlideCourse(seed: UInt64(seed), initialSegments: 128)
+            for index in 1...90 {
+                let row = HoneySlideRules.playerAhead + Double(index) * HoneySlideRules.checkpointSpacing
+                // All three complete choices must be visible before the guides
+                // capture a lane, and stay visible all the way to contact.
+                for remaining in stride(from: 0.0, through: 300, by: 10) {
+                    let elapsed = (row - HoneySlideRules.playerAhead - remaining) / HoneySlideRules.forwardSpeed
+                    let depth = HoneySlideRules.depth(ahead: HoneySlideRules.playerAhead + remaining)
+                    for lane in [-0.66, 0, 0.66] {
+                        let bounds = HoneySlideRules.potBounds(depth: depth, lateral: lane,
+                            elapsed: elapsed, billboardYScale: 1, course: course)
+                        assert(bounds.minX > 0 && bounds.maxX < 1600,
+                               "A sharp corner concealed an answer at the decision point")
+                    }
+                }
             }
         }
     }
@@ -505,10 +751,10 @@ import CoreGraphics
         let sizes = [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834),
                      CGSize(width: 1600, height: 900), CGSize(width: 932, height: 430)]
         for selectedLane in 0..<3 {
-            var ride = HoneySlideSimulation()
+            var ride = HoneySlideSimulation(courseSeed: 42)
             ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
             let row = ride.activeCheckpoint!
-            ride.targetLateral = Double(selectedLane - 1) * HoneySlideRules.laneSpacing
+            ride.steer(to: Double(selectedLane - 1) * HoneySlideRules.laneSpacing)
             while ride.crossing(roundID: row.roundID!) == nil { ride.advance(seconds: 1.0 / 120) }
             let hit = ride.crossing(roundID: row.roundID!)!
             ride.markSelected(checkpointID: row.id, index: hit.index, correct: hit.option.isCorrect)
@@ -525,7 +771,7 @@ import CoreGraphics
                 let center = HoneySlideRules.ridingPoint(depth: depth, lateral: 0, distance: ride.elapsed)
                 let right = HoneySlideRules.ridingPoint(depth: depth, lateral: 0.66, distance: ride.elapsed)
                 assert(right.x - center.x >= previousSpread && center.y >= previousY)
-                assert(center.x == 800)
+                if depth <= 1.3 { assert(abs(center.x - 800) < 0.000001) }
                 assert(right.x - center.x > 158 * HoneySlideRules.answerScale(depth: depth))
                 previousSpread = right.x - center.x; previousY = center.y
                 for (index, size) in sizes.enumerated() {

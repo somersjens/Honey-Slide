@@ -20,6 +20,28 @@ reject late attempts to steer through a wall, settle into that pot, and restore
 free steering afterward. Phone/tablet viewport checks verify that pots preserve
 the same width-to-height ratio.
 
+Course checks cover sixteen generated runs: broad left/right arcs, successive
+turns in the same direction, straight intervals, varied angles and curve lengths.
+There is no forced alternating pattern. The run seed determines the whole course.
+Extending a course preserves existing geometry. An unattended rider keeps a
+straight world trajectory until the turning course brings it into an outside
+rail. The wall redirects travel along its tangent while pushing against the
+tube. An opposite corner releases that contact, and the same straight heading
+takes the rider away from the rail; a mild curve may leave it in the middle,
+while a stronger curve reaches the opposite rail. Touch release restores straight travel;
+touch and keyboard input can leave the rail. A ten-second slow frame produces
+the same position and heading as 1,200 fast frames. Pausing freezes both.
+Phone/tablet checks align rail contact with the actual tube footprint and keep
+the rider visible. The camera, rider, water,
+pots, walls and inverse touch projection all use that run's course.
+Eighty unattended checkpoint passages across eight seeds additionally verify
+that real divider capture allows both outer lanes and intermediate positions
+without input or pulling the idle rider toward its pot's center. Curves span
+600–850 world units with a cosine heading transition and varied turn angles.
+Fixed-width
+checks cover eight seeds over ten minutes; straight rails must project as straight
+lines, and all three actual answers remain visible before channel capture.
+
 Camera-passage checks follow the same row geometry through the old −80 cutoff
 and the camera near plane. They verify outward-only lane spacing, continuous
 pot scale at contact, preserved option identities, and full silhouettes outside
@@ -39,7 +61,8 @@ seconds. Contact pots are smaller than the bear and keep their original aspect
 ratio. The penalty overlays the score digit for 1.15 seconds before the updated
 score appears; no extra HUD space is reserved for it.
 One hundred checkpoint landings verify straight channel geometry through
-approach and passage, plus smooth connections between those landings and bends.
+approach and passage, plus continuous position, heading and turn rate where
+those landings meet bends. Straight sections retain the heading of their turn.
 
 For repeatable visual QA, a Debug build accepts
 `--honey-visual-check=correct:0.35` or `--honey-visual-check=wrong:0.30`.
@@ -57,10 +80,10 @@ The synchronized source group excludes the archived `space-lion` copy, its
 asset catalog, and this standalone test harness. The application supports
 landscape iPhone/iPad on iOS 17 or later.
 
-The projection-cache regression check compares 1.3 million coordinates over
-ten minutes of bends against the exact projection, including the horizon and
-the near-plane fallback. It requires less than half a logical pixel of error;
-the measured maximum is 0.338 pixel. Answer geometry and physics stay exact.
+The projection-cache regression check compares 1.3 million coordinates across
+eight course seeds and ten minutes against the exact projection, including the
+horizon and near-plane fallback. It requires less than half a logical pixel of
+error; the measured maximum is 0.096 pixel. Answer geometry and physics stay exact.
 
 ## Renderer performance
 
@@ -76,6 +99,10 @@ PNG previews and `renderer.json` containing median/p95 preparation times,
 per-section times and command counts. These CPU/offscreen measurements are
 **not device FPS**; rendering and presentation can finish later on GPU threads.
 Run comparisons consecutively on an idle host, without concurrent builds.
+The bend, curve-exit and reversal previews leave the rider unattended to show
+straight travel, rail contact and detachment. Continuing-arc and long-straight
+scenes inspect the irregular course rhythm. Reports include the contact side,
+position and world heading for each viewport.
 
 `--source-dir` accepts a saved renderer/rules/simulation snapshot for a baseline.
 `--compile-only` leaves the executable for Time Profiler. For a live simulator
@@ -88,6 +115,10 @@ xcrun simctl install DEVICE_UUID /tmp/honey-live/HoneyPerformance.app
 xcrun simctl launch --terminate-running-process DEVICE_UUID local.honey.performance
 xcrun simctl get_app_container DEVICE_UUID local.honey.performance data
 ```
+
+Add `--idle-course` when building the isolated simulator app to inspect a full
+unattended run through the varied curves. Omit it to check deliberate steering.
+Both modes use the production renderer and simulation without player save data.
 
 The separate test app runs 32 seconds, including steering, correct/incorrect
 collisions and shutters, then writes `Library/Caches/HoneyPerformance.json`

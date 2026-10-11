@@ -33,10 +33,10 @@ struct HoneySlidePlayfield: View {
                         guard running else { return }
                         let point = CGPoint(x: value.location.x / proxy.size.width * 1600,
                                             y: value.location.y / proxy.size.height * 900)
-                        if let target = HoneySlideRules.steeringTarget(at: point, elapsed: distance) {
-                            simulation.targetLateral = target
+                        if let target = HoneySlideRules.steeringTarget(at: point, elapsed: distance, course: simulation.course) {
+                            simulation.steer(to: target)
                         }
-                    })
+                    }.onEnded { _ in simulation.release() })
                 HoneyAnswerAccessibility(options: simulation.activeCheckpoint?.options ?? [], enabled: running) { index in
                     simulation.targetLateral = Double(index - 1) * 0.66
                 }
@@ -66,6 +66,8 @@ struct HoneySlidePlayfield: View {
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
             .contentShape(Rectangle())
+            .onAppear { simulation.configureViewport(proxy.size) }
+            .onChange(of: proxy.size) { _, size in simulation.configureViewport(size) }
 
         }
         .onChange(of: running) { _, _ in lastTick = nil; simulation.release() }
@@ -130,7 +132,7 @@ struct HoneySlidePlayfield: View {
         // This path never selects an answer or changes the player's saved score.
         if model.acceptsInput, !visualCheckPrepared, let check = visualCheck, let row = simulation.activeCheckpoint,
            let index = row.options.firstIndex(where: { $0.isCorrect == check.correct }) {
-            simulation.targetLateral = Double(index - 1) * HoneySlideRules.laneSpacing
+            simulation.steer(to: Double(index - 1) * HoneySlideRules.laneSpacing)
             while simulation.crossing(roundID: row.roundID!) == nil { simulation.advance(seconds: 1.0 / 120) }
             simulation.markSelected(checkpointID: row.id, index: index, correct: check.correct)
             simulation.advance(seconds: check.age)
@@ -184,7 +186,7 @@ private struct HoneySlideWorld: View {
         Canvas(opaque: true, rendersAsynchronously: true) { context, size in
             var c = context
             c.scaleBy(x: size.width / 1600, y: size.height / 900)
-            let projection = HoneySlideProjection(elapsed: simulation.elapsed)
+            let projection = HoneySlideProjection(elapsed: simulation.elapsed, course: simulation.course)
             drawWorld(&c, projection: projection, billboardYScale: HoneySlideRules.billboardVerticalScale(viewport: size))
             if rider != nil {
                 HoneyTubeWater.draw(in: context, size: size, simulation: simulation, foreground: false, reduceMotion: reduceMotion)
@@ -231,7 +233,7 @@ private struct HoneySlideWorld: View {
     }
 
     private func ridingPoint(_ depth: Double, _ offset: Double) -> CGPoint {
-        HoneySlideRules.ridingPoint(depth: depth, lateral: offset, distance: distance)
+        HoneySlideRules.ridingPoint(depth: depth, lateral: offset, distance: distance, course: simulation.course)
     }
 
     private func ribbon(_ low: Double, _ high: Double, _ projection: HoneySlideProjection) -> Path {
@@ -361,7 +363,7 @@ private struct HoneySlideWorld: View {
         for side in [-1.0, 1.0] {
             let feet = samples.map { point($0, side, projection) }
             let tops = zip(feet, samples).map { p, depth in
-                CGPoint(x: p.x, y: p.y - HoneySlideRules.railHeight * pow(depth, 1.2))
+                CGPoint(x: p.x, y: p.y - HoneySlideRules.railHeight * depth)
             }
             var wall = Path()
             // addLines starts a new subpath. Both edges must be submitted
@@ -388,7 +390,7 @@ private struct HoneySlideWorld: View {
             let t = HoneySlideRules.depth(ahead: ahead)
             for side in [-1.0, 1.0] {
                 let p = point(t, side, projection)
-                let height = HoneySlideRules.railHeight * pow(t, 1.2)
+                let height = HoneySlideRules.railHeight * t
                 let rect = CGRect(x: p.x - max(0.1, 3 * t) / 2, y: p.y - height,
                                   width: max(0.1, 3 * t), height: height)
                 seams.addRect(rect)
@@ -530,7 +532,7 @@ private struct HoneySlideWorld: View {
             for side in [-1.0, 1.0] {
                 let foot = point(t, side, projection)
                 guard foot.x > -80 && foot.x < 1680 else { continue }
-                let top = CGPoint(x: foot.x, y: foot.y - HoneySlideRules.railHeight * pow(t, 1.2))
+                let top = CGPoint(x: foot.x, y: foot.y - HoneySlideRules.railHeight * t)
                 let length = Double(26 + abs(index) % 4 * 8) * t
                 var honey = c
                 honey.opacity = HoneySlideRules.distantOpacity(ahead: ahead)
@@ -590,7 +592,7 @@ private struct HoneySlideWorld: View {
                 let tumble = selected ? min(1, (distance - (row.impactAt ?? distance)) / HoneySlideRules.tumbleDuration) : 0
                 if selected && tumble >= 1 { continue }
                 let bounds = HoneySlideRules.potBounds(depth: t, lateral: Double(i - 1) * 0.66,
-                                                      elapsed: distance, billboardYScale: billboardYScale)
+                    elapsed: distance, billboardYScale: billboardYScale, course: simulation.course)
                 guard bounds.insetBy(dx: selected ? -150 * s : 0, dy: selected ? -70 * s : 0)
                     .intersects(CGRect(x: 0, y: 0, width: 1600, height: 900)) else { continue }
                 let p = ridingPoint(t, Double(i - 1) * 0.66)
@@ -793,7 +795,7 @@ private enum HoneyRiderDrawing {
         guard let bear = context.resolveSymbol(id: "rider") else { return }
         let width = min(size.width * 0.285, size.height * 0.43)
         let player = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
-            lateral: simulation.lateral, distance: simulation.elapsed)
+            lateral: simulation.lateral, distance: simulation.elapsed, course: simulation.course)
         let bob = reduceMotion ? 0 : sin(simulation.elapsed * 6.5) * 4 * min(size.width / 1600, size.height / 900)
         var sprite = context
         sprite.translateBy(x: player.x / 1600 * size.width, y: size.height * 0.735 + bob)
@@ -821,7 +823,7 @@ private struct HoneyTubeWater: View {
         let spriteWidth = min(size.width * 0.285, size.height * 0.43)
         let spriteHeight = spriteWidth * 1312 / 1247
         let player = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
-                                                 lateral: simulation.lateral, distance: simulation.elapsed)
+            lateral: simulation.lateral, distance: simulation.elapsed, course: simulation.course)
         let angle = reduceMotion ? 0 : simulation.tubeHeading * .pi / 180
         let bob = reduceMotion ? 0 : sin(simulation.elapsed * 6.5) * 4 * min(size.width / 1600, size.height / 900)
         var c = context
@@ -830,7 +832,7 @@ private struct HoneyTubeWater: View {
         c.rotate(by: .radians(angle))
         c.scaleBy(x: spriteWidth / 400, y: spriteWidth / 400)
         let time = simulation.elapsed
-        let steering = max(-1, min(1, simulation.lateralVelocity))
+        let steering = max(-1, min(1, simulation.steeringVelocity))
         let cream = Color(red: 1, green: 0.98, blue: 0.81)
         let amber = Color(red: 0.89, green: 0.45, blue: 0.025)
         if !foreground {

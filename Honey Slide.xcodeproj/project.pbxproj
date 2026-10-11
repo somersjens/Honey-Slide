@@ -18,6 +18,8 @@
 		F951D475307A6B5600FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
 		F951D5BD307AC6A200FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
 		F951D607307AC6A200FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951D748307ACE9100FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
+		F951D792307ACE9100FF04C4 /* Space Lion.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Space Lion.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -172,6 +174,8 @@
 				F951D2C4307A45DC00FF04C4 /* Space Lion.xcodeproj */,
 				F951D475307A6B5600FF04C4 /* Space Lion.xcodeproj */,
 				F951D42C307A6B5600FF04C4 /* Space Lion.xcodeproj */,
+				F951D607307AC6A200FF04C4 /* Space Lion.xcodeproj */,
+				F951D5BD307AC6A200FF04C4 /* Space Lion.xcodeproj */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -232,6 +236,20 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		F951D798307ACE9100FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F951D79A307ACE9100FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -286,6 +304,10 @@
 					ProjectRef = F951CB91307A416800FF04C4 /* Space Lion.xcodeproj */;
 				},
 				{
+					ProductGroup = F951D79A307ACE9100FF04C4 /* Products */;
+					ProjectRef = F951D792307ACE9100FF04C4 /* Space Lion.xcodeproj */;
+				},
+				{
 					ProductGroup = F951D60D307AC6A200FF04C4 /* Products */;
 					ProjectRef = F951D607307AC6A200FF04C4 /* Space Lion.xcodeproj */;
 				},
@@ -302,12 +324,16 @@
 					ProjectRef = F951D30C307A45DC00FF04C4 /* Space Lion.xcodeproj */;
 				},
 				{
+					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
+					ProjectRef = F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */;
+				},
+				{
 					ProductGroup = F951D314307A45DC00FF04C4 /* Products */;
 					ProjectRef = F951D2C4307A45DC00FF04C4 /* Space Lion.xcodeproj */;
 				},
 				{
-					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
-					ProjectRef = F951CB4D307A416800FF04C4 /* Space Lion.xcodeproj */;
+					ProductGroup = F951D798307ACE9100FF04C4 /* Products */;
+					ProjectRef = F951D748307ACE9100FF04C4 /* Space Lion.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D47B307A6B5600FF04C4 /* Products */;

@@ -39,11 +39,25 @@ struct HoneyCheckpoint: Identifiable {
 }
 
 struct HoneySlideSimulation {
+    private(set) var course: HoneySlideCourse
     private(set) var elapsed = 0.0
     var distance: Double { HoneySlideRules.worldDistance(elapsed) }
     private(set) var lateral = 0.0
     private(set) var lateralVelocity = 0.0
-    var tubeHeading: Double { lateralVelocity * 5 + sin(elapsed * 3.4) * 1.7 }
+    private(set) var steeringVelocity = 0.0
+    private(set) var travelSlope = 0.0
+    private(set) var railContact = 0.0
+    private(set) var tubeHeading = 0.0
+    private var tubeHalfWidth = 195.0
+    var railLimit: Double {
+        (HoneySlideRules.trackHalfWidth(depth: HoneySlideRules.playerDepth)
+            - tubeHalfWidth - HoneySlideRules.railClearance)
+            / HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth)
+    }
+    var riderWorldX: Double {
+        course.sample(at: distance + HoneySlideRules.playerAhead).x
+            + lateral * HoneySlideRules.lateralWorldScale
+    }
     private(set) var checkpoints: [HoneyCheckpoint] = []
     private(set) var feedbackRemaining = 0.0
     private(set) var lastWasCorrect = false
@@ -67,11 +81,24 @@ struct HoneySlideSimulation {
             $0.age(at: elapsed) < ($0.correct ? HoneySlideRules.collectionDuration : HoneySlideRules.penaltyDuration)
         }
     }
-    var targetLateral = 0.0
+    private var steeringTarget = 0.0
+    private var hasSteeringTarget = false
+    var targetLateral: Double {
+        get { steeringTarget }
+        set {
+            steeringTarget = max(-railLimit, min(railLimit, newValue))
+            hasSteeringTarget = true
+        }
+    }
     var heldDirection = 0.0
     private var holdElapsed = 0.0
+    private var touchSteering = false
     private var nextCheckpointID = 0
     private var optionCache: [UUID: [AnswerOption]] = [:]
+
+    init(courseSeed: UInt64 = UInt64.random(in: .min ... .max)) {
+        course = HoneySlideCourse(seed: courseSeed)
+    }
 
     var activeCheckpoint: HoneyCheckpoint? {
         checkpoints.first { $0.selectedIndex == nil }
@@ -103,55 +130,118 @@ struct HoneySlideSimulation {
     }
 
     mutating func press(_ direction: Double) {
+        touchSteering = false
         heldDirection = direction
         holdElapsed = 0
         // A tap changes one lane; a sustained press also allows free steering.
-        let lane = round(targetLateral / 0.66)
-        targetLateral = max(-0.78, min(0.78, (lane + direction) * 0.66))
+        let lane = round(lateral / HoneySlideRules.laneSpacing)
+        targetLateral = (lane + direction) * HoneySlideRules.laneSpacing
     }
 
-    mutating func release() { heldDirection = 0; holdElapsed = 0 }
+    mutating func steer(to target: Double) {
+        touchSteering = true
+        targetLateral = target
+    }
+
+    mutating func configureViewport(_ size: CGSize) {
+        guard size.width > 0, size.height > 0 else { return }
+        let spriteWidth = min(size.width * 0.285, size.height * 0.43)
+        tubeHalfWidth = spriteWidth / size.width * 1600 * 0.46
+        lateral = max(-railLimit, min(railLimit, lateral))
+        steeringTarget = max(-railLimit, min(railLimit, steeringTarget))
+    }
+
+    mutating func release() { heldDirection = 0; holdElapsed = 0; touchSteering = false }
 
     mutating func advance(seconds: Double) {
         guard seconds > 0, seconds.isFinite else { return }
-        elapsed += seconds
-        feedbackRemaining = max(0, feedbackRemaining - seconds)
-        impacts.removeAll { $0.age(at: elapsed) > 2.0 }
-        holdElapsed += seconds
-        if heldDirection != 0 && holdElapsed > 0.24 {
-            targetLateral = max(-0.78, min(0.78, targetLateral + heldDirection * seconds * 1.25))
-        }
-        // The two physical dividers capture the nearest channel at their
-        // leading noses. Once between the walls, steering cannot cross them.
-        var channel: Int?
-        var channelProgress = 0.0
-        if let i = checkpoints.firstIndex(where: { $0.selectedIndex == nil }),
-           distance + HoneySlideRules.playerAhead >= checkpoints[i].worldPosition - HoneySlideRules.dividerLead {
-            if checkpoints[i].guidedLane == nil {
-                checkpoints[i].guidedLane = HoneySlideRules.collisionIndex(lateral: lateral)
-            }
-            channel = checkpoints[i].guidedLane
-            channelProgress = min(1, max(0, (distance + HoneySlideRules.playerAhead
-                - (checkpoints[i].worldPosition - HoneySlideRules.dividerLead)) / HoneySlideRules.dividerLead))
-            targetLateral = Double(channel! - 1) * 0.66
-        }
-        // Small integration steps keep steering stable even after a slow frame.
-        var remaining = min(seconds, 0.3)
+        course.extend(through: distance + seconds * HoneySlideRules.forwardSpeed + HoneySlideRules.drawDistance)
+        // Integrate straight travel, input and wall contact on the same distance
+        // clock. Long frames must not skip the turn or its channel entrance.
+        var remaining = seconds
         while remaining > 0.00001 {
             let dt = min(1.0 / 120, remaining)
-            let acceleration = (targetLateral - lateral) * 95 - lateralVelocity * 18
-            lateralVelocity += acceleration * dt
-            lateral = max(-0.80, min(0.80, lateral + lateralVelocity * dt))
+            let oldPosition = distance + HoneySlideRules.playerAhead
+            let oldCourse = course.sample(at: oldPosition)
+            let oldLateral = lateral
+            elapsed += dt
+            holdElapsed += dt
+            let position = distance + HoneySlideRules.playerAhead
+            let currentCourse = course.sample(at: position)
+            if heldDirection != 0 && holdElapsed > 0.24 {
+                targetLateral = steeringTarget + heldDirection * dt * 1.25
+            }
+            var channel: Int?
+            var channelProgress = 0.0
+            if let i = checkpoints.firstIndex(where: { $0.selectedIndex == nil }),
+               distance + HoneySlideRules.playerAhead >= checkpoints[i].worldPosition - HoneySlideRules.dividerLead {
+                if checkpoints[i].guidedLane == nil {
+                    checkpoints[i].guidedLane = HoneySlideRules.collisionIndex(lateral: lateral)
+                }
+                channel = checkpoints[i].guidedLane
+                channelProgress = min(1, max(0, (distance + HoneySlideRules.playerAhead
+                    - (checkpoints[i].worldPosition - HoneySlideRules.dividerLead)) / HoneySlideRules.dividerLead))
+                // Only an actual steering command targets the middle of the
+                // selected channel. An idle rider keeps sliding along its rail.
+                if hasSteeringTarget {
+                    steeringTarget = Double(channel! - 1) * HoneySlideRules.laneSpacing
+                }
+            }
+            if hasSteeringTarget {
+                // Deliberate lane selection follows the road while the player
+                // steers. A released tap finishes that one requested lane change.
+                travelSlope = currentCourse.slope
+                let acceleration = (steeringTarget - lateral) * 95 - steeringVelocity * 18
+                steeringVelocity += acceleration * dt
+                lateral += steeringVelocity * dt
+                if !touchSteering && heldDirection == 0,
+                   abs(steeringTarget - lateral) < 0.003, abs(steeringVelocity) < 0.02 {
+                    hasSteeringTarget = false
+                    steeringVelocity = 0
+                }
+            } else {
+                // Keep the rider's world heading. The bending course moves
+                // underneath that straight trajectory, towards the outside rail.
+                // A rail can push us along its tangent, but cannot pull us back
+                // when the next corner turns away from that trajectory.
+                lateral += (travelSlope * (position - oldPosition)
+                    - (currentCourse.x - oldCourse.x)) / HoneySlideRules.lateralWorldScale
+                steeringVelocity = 0
+            }
+            let unconstrained = lateral
+            lateral = max(-railLimit, min(railLimit, lateral))
+            railContact = abs(lateral) >= railLimit - 1e-9 ? (lateral < 0 ? -1 : 1) : 0
+            if lateral != unconstrained || railContact != 0 {
+                // Contact removes motion through the wall and aligns forward
+                // travel to its tangent. There is no bounce or pull to the centre.
+                travelSlope = currentCourse.slope
+                steeringVelocity = 0
+            }
             if let channel {
-                // Keep the entire tube clear of both divider faces while it
-                // settles into the middle of the channel, even after a flick.
+                // Keep the tube clear of divider faces. Outer channels still
+                // allow an unattended rider to travel alongside the outer rail.
                 let center = Double(channel - 1) * 0.66
                 let halfChannel = HoneySlideRules.laneBoundary - channelProgress * (HoneySlideRules.laneBoundary - 0.22)
-                let safe = max(center - halfChannel, min(center + halfChannel, lateral))
-                if safe != lateral { lateral = safe; lateralVelocity = 0 }
+                let low = channel == 0 ? -railLimit : center - halfChannel
+                let high = channel == 2 ? railLimit : center + halfChannel
+                let safe = max(low, min(high, lateral))
+                if safe != lateral {
+                    lateral = safe
+                    travelSlope = currentCourse.slope
+                    steeringVelocity = 0
+                    railContact = 0
+                }
             }
+            lateralVelocity = (lateral - oldLateral) / dt
+            // Relative motion caused by the road is not a steering animation.
+            let heading = max(-16, min(16, steeringVelocity * 5 + railContact * 2))
+            tubeHeading += (heading - tubeHeading) * (1 - exp(-7 * dt))
             remaining -= dt
         }
+        // Preserve exact elapsed travel even for a sub-integration-step frame.
+        elapsed += max(0, remaining)
+        feedbackRemaining = max(0, feedbackRemaining - seconds)
+        impacts.removeAll { $0.age(at: elapsed) > 2.0 }
         let cameraDistance = distance
         checkpoints.removeAll {
             $0.selectedIndex != nil && $0.worldPosition + HoneySlideRules.dividerTail
@@ -178,7 +268,7 @@ struct HoneySlideSimulation {
         let impact = HoneyPotImpact(id: checkpointID, startedAt: elapsed,
             worldPosition: checkpoints[i].worldPosition, lane: index, text: checkpoints[i].options[index].text,
             correct: correct, origin: HoneySlideRules.ridingPoint(depth: depth,
-                lateral: Double(index - 1) * HoneySlideRules.laneSpacing, distance: elapsed),
+                lateral: Double(index - 1) * HoneySlideRules.laneSpacing, distance: elapsed, course: course),
             scale: HoneySlideRules.answerScale(depth: depth))
         impacts.append(impact)
         lastContact = impact

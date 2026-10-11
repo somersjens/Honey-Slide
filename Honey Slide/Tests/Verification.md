@@ -1,4 +1,4 @@
-# Honey Slide verification — 2026-10-10
+# Honey Slide verification — 2026-10-11
 
 ## Current gameplay
 
@@ -25,9 +25,39 @@ Attempted questions remain resumable even when the score is zero.
 One monotonic movement clock projects the continuous honey course, answer
 rows, rapids, rail joints, trees, cliffs and waterfalls at 220 units/second.
 All checkpoint positions are fixed world positions. The final approach keeps
-the center at x=800 from depth 0.55 through and after contact, preventing inward drift;
-the outer lanes spread only through perspective. Replenished rows enter past
+the center at x=800 along each checkpoint's straight landing; the outer lanes
+spread through perspective. Elsewhere the foreground retains the actual bend.
+Replenished rows enter past
 the 10,000-unit draw distance and fade in at the horizon.
+
+Each new playfield generates its own seeded course. Rounded arcs vary in angle
+and length, can continue in the same direction, and sometimes give way to a longer
+straight. Turns are not forced to alternate left/right. The heading stays within
+55 degrees either side to keep the course readable without imposing a zigzag.
+Turns change heading continuously; the camera follows that heading instead of
+flattening the foreground or moving sine-wave anchors sideways. Course extension
+retains all previously generated geometry. Pausing keeps the same course.
+Curved sections now span 600–850 world units. A cosine transition spreads the
+change of heading over the full arc rather than concentrating a short corner.
+The answer approaches and foreground passage remain clear. Road width
+is constant in world coordinates. Direct perspective replaces per-point horizontal
+compression and the distance-dependent width funnel. Straight verges and their
+raised rails consequently project as straight lines up to the rider.
+At the horizon, the last visible section continues along its own tangent rather
+than closing across the view toward a forced center point.
+
+An unattended rider keeps its world heading and travels straight. The turning
+course moves underneath that trajectory until the tube contacts an outside rail.
+Contact aligns travel with the rail only while the wall pushes against the tube.
+When the next corner turns away, the rider detaches, keeps its existing heading,
+and crosses away from the rail. Mild curves can leave it near the middle, while
+stronger curves reach the other outside rail. There is no automatic steering target
+or pull toward the middle. A released touch finishes its requested movement,
+then restores straight travel. The rider's lean reflects deliberate steering
+and a small rail-contact lean, with smoothing and a 16-degree limit. Physics
+integrates the complete frame interval, including wall contact and channel capture.
+Foreground rails account for the actual tube footprint at each viewport size,
+so the visible tube reaches the rail while remaining on screen.
 
 The foreground projection continues below the camera instead of clamping at
 depth 1.3. Its value and velocity are continuous at contact; the lower ground
@@ -39,7 +69,7 @@ previous arbitrary −80-unit row deletion. Neither selection nor promotion chan
 a pot's position. The passage harness checks all three selected lanes and four
 viewport sizes; every passed pot is out of view within one second.
 
-Contact pot scale remains 2.448, with a riding width of 740 units and positive
+Contact pot scale remains 1.88, with a riding width of 740 units and positive
 gaps between all three choices. Both banks have a continuous forest floor,
 projected verges, rooted trees and flower bushes. Rails rise 84 logical units,
 with honey tongues, spills and droplets. The supplied `1_bear` image rides in
@@ -80,6 +110,27 @@ batched for rendering without changing their geometry or joints at proximity
 thresholds. Wall endpoints and pot offsets never depend on the selected lane.
 
 ## Verified after this revision
+
+- Generated-course, straight-travel and rail-contact checks across sixteen seeds: passed.
+- Different course shapes, continuing turns, straight intervals and unchanged geometry
+  after course extension; unchanged world heading before contact, staying on the
+  first rail until the corner reverses, detachment with unchanged world heading,
+  movement away from the first rail, touch release, touch/key steering away from
+  the rail, pause and identical movement over one ten-second frame versus 1,200
+  small frames. Phone/tablet contact also matches the visible tube footprint.
+- Projection cache across eight seeds and ten minutes: maximum error 0.096 logical
+  pixel; all pot, divider, scoring, shutter and session regression checks passed.
+- Production-renderer previews inspected for broad arcs, continuing turns, longer
+  straights and three reversal phases on phone and tablet; final Release simulator
+  build passed.
+- Fixed world width and straight projected verges across eight seeds and ten
+  minutes; all three real answer silhouettes visible before capture across sixteen seeds.
+- Eighty unattended checkpoint passages across eight seeds reached both outer
+  lanes without forcing an alternating sequence, including through the physical
+  guides. A separate iPadOS 27 simulator app
+  completed a 32-second unattended course with the production renderer and engine.
+  Its own container keeps test answers separate from the player's saved progress.
+## Earlier builds, save and interaction checks
 
 - Debug iOS Simulator build: passed.
 - Release iOS Simulator build: passed.

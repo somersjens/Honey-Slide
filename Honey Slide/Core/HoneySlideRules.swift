@@ -32,6 +32,23 @@ enum HoneySlideRules {
     static let nearClipAhead = focalLength * (1 / nearClipDepth - 1)
     static let laneSpacing = 0.66
     static let laneBoundary = laneSpacing / 2
+    static let railClearance = 12.0
+
+    // One fixed-width road, enlarged only by perspective. Changing width with
+    // viewing distance made the verges bulge and pinch as corners approached.
+    static let trackWorldHalfWidth = 800.0
+    static let projectionScale = 1.2
+    static let groundScale = 780 * pow(playerDepth, 0.2)
+    static func trackHalfWidth(depth: Double) -> Double {
+        trackWorldHalfWidth * max(0, depth) * projectionScale
+    }
+
+    static func ridingHalfWidth(depth: Double) -> Double {
+        min(740 * depth / playerDepth, trackHalfWidth(depth: depth) * 0.92)
+    }
+
+    /// Convert rider lane displacement back to the world spline's x units.
+    static let lateralWorldScale = ridingHalfWidth(depth: playerDepth) / (playerDepth * projectionScale)
 
     /// The course fills any viewport; upright props preserve their proportions.
     static func billboardVerticalScale(viewport: CGSize) -> Double {
@@ -43,51 +60,31 @@ enum HoneySlideRules {
 
     /// Inverse perspective: every sample is part of one fixed world spline.
     /// Depth zero converges to the horizon, rather than terminating at a cap.
-    static func trackPoint(depth: Double, offset: Double, distance: Double, originCourse: Double? = nil) -> CGPoint {
+    static func trackPoint(depth: Double, offset: Double, distance: Double,
+                           course: HoneySlideCourse = .preview,
+                           originCourse: Double? = nil, originSlope: Double? = nil) -> CGPoint {
         let t = max(0, min(nearClipDepth, depth))
         let world = worldDistance(distance)
-        let ahead = min(drawDistance, focalLength * (1 / max(0.001, t) - 1))
-        // The camera translates along the course. A local tangent must not
-        // whip the distant scenery sideways when a straight meets a bend.
-        // The camera faces straight along the final approach. Curvature stays
-        // in the distance; a checkpoint never slides sideways just before hit.
-        let settle = max(0, min(1, (0.55 - t) / 0.23))
-        let nearBlend = settle * settle * (3 - 2 * settle)
-        // The complete landing is straight. Do not evaluate a spline (and
-        // its sine anchors) only to multiply its result by zero.
+        let ahead = focalLength * (1 / max(0.001, t) - 1)
+        // Follow the course tangent instead of flattening the entire foreground.
+        // A checkpoint on its straight approach still projects directly ahead.
+        let origin = course.sample(at: world)
+        let cameraX = originCourse ?? origin.x, cameraSlope = originSlope ?? origin.slope
         let center: Double
-        if nearBlend == 0 {
-            center = 800
+        // Project the fixed geometry directly. Compressing each point with
+        // tanh flattened distant bends and moved their edges at different rates.
+        if ahead >= drawDistance {
+            let end = course.sample(at: world + drawDistance)
+            // Continue the far tangent to its vanishing point. Capping world
+            // distance and then forcing x=800 made a moving triangle at infinity.
+            center = 800 + projectionScale * ((end.x - cameraX - end.slope * drawDistance) * t
+                + (end.slope - cameraSlope) * focalLength * (1 - t))
         } else {
-            let projectedBend = (course(world + ahead) - (originCourse ?? course(world))) * t * 1.35
-            center = 800 + 300 * tanh(projectedBend / 500) * nearBlend
+            let relative = course.sample(at: world + ahead).x - cameraX - cameraSlope * ahead
+            center = 800 + relative * t * projectionScale
         }
-        return CGPoint(x: center + offset * (1550 * pow(t, 1.55)),
+        return CGPoint(x: center + offset * trackHalfWidth(depth: t),
                        y: groundY(depth: t))
-    }
-
-    /// Every checkpoint occupies a fixed straight landing. C2-continuous
-    /// bends connect the landings; all rails, trees and walls use this spline.
-    static func course(_ z: Double) -> Double {
-        let cell = floor((z - firstCheckpointPosition) / checkpointSpacing)
-        let left = firstCheckpointPosition + cell * checkpointSpacing
-        let blendLength = checkpointSpacing - 2 * straightHalfLength
-        let t = max(0, min(1, (z - left - straightHalfLength) / blendLength))
-        let eased = t * t * t * (10 + t * (-15 + 6 * t))
-        func anchor(_ position: Double) -> Double {
-            2400 * sin(position / 1600) + 1300 * sin(position / 3300 + 1.2)
-        }
-        return anchor(left) + (anchor(left + checkpointSpacing) - anchor(left)) * eased
-    }
-
-    static func courseSlope(_ z: Double) -> Double {
-        let cell = floor((z - firstCheckpointPosition) / checkpointSpacing)
-        let left = firstCheckpointPosition + cell * checkpointSpacing
-        let length = checkpointSpacing - 2 * straightHalfLength
-        let t = max(0, min(1, (z - left - straightHalfLength) / length))
-        let delta = 2400 * (sin((left + checkpointSpacing) / 1600) - sin(left / 1600))
-            + 1300 * (sin((left + checkpointSpacing) / 3300 + 1.2) - sin(left / 3300 + 1.2))
-        return delta * 30 * t * t * (t - 1) * (t - 1) / length
     }
 
     /// The near ground opens below the camera's downward view. This has the
@@ -95,14 +92,16 @@ enum HoneySlideRules {
     /// of frame instead of leaving its growing crown behind the bear's head.
     static func groundY(depth: Double) -> Double {
         let t = max(0, depth), belowRider = max(0, t - playerDepth)
-        return 155 + 780 * pow(t, 1.2) + 800 * belowRider * belowRider
+        // A flat straight has straight projected verges. Only the ground below
+        // the rider opens out to carry passed objects out of the viewport.
+        return 155 + groundScale * t + 800 * belowRider * belowRider
     }
 
     static func groundDepth(screenY: Double) -> Double {
         let y = max(155.001, screenY)
-        var t = min(1.3, pow((y - 155) / 780, 1 / 1.2))
+        var t = min(1.3, (y - 155) / groundScale)
         for _ in 0..<6 {
-            let derivative = 936 * pow(max(0.001, t), 0.2) + 1600 * max(0, t - playerDepth)
+            let derivative = groundScale + 1600 * max(0, t - playerDepth)
             t = max(0.001, min(1.3, t - (groundY(depth: t) - y) / derivative))
         }
         return t
@@ -112,23 +111,23 @@ enum HoneySlideRules {
         focalLength / (focalLength + max(nearClipAhead, ahead))
     }
 
-    static func ridingPoint(depth: Double, lateral: Double, distance: Double) -> CGPoint {
-        let center = trackPoint(depth: depth, offset: 0, distance: distance)
-        let roadWidth = 1550 * pow(max(0, depth), 1.55)
-        let ridingWidth = min(740 * depth / playerDepth, roadWidth * 0.78)
+    static func ridingPoint(depth: Double, lateral: Double, distance: Double,
+                            course: HoneySlideCourse = .preview) -> CGPoint {
+        let center = trackPoint(depth: depth, offset: 0, distance: distance, course: course)
+        let ridingWidth = ridingHalfWidth(depth: max(0, depth))
         return CGPoint(x: center.x + lateral * ridingWidth, y: center.y)
     }
 
     /// Invert the same projection used to place barrels. A tap on a far lane
     /// selects that lane, rather than a screen-x position close to the centre.
-    static func steeringTarget(at point: CGPoint, elapsed: Double) -> Double? {
+    static func steeringTarget(at point: CGPoint, elapsed: Double, course: HoneySlideCourse = .preview) -> Double? {
         guard point.y >= 155 else { return nil }
         let depth = groundDepth(screenY: point.y)
-        let center = trackPoint(depth: depth, offset: 0, distance: elapsed)
-        let edge = trackPoint(depth: depth, offset: 1, distance: elapsed)
+        let center = trackPoint(depth: depth, offset: 0, distance: elapsed, course: course)
+        let edge = trackPoint(depth: depth, offset: 1, distance: elapsed, course: course)
         guard abs(point.x - center.x) <= edge.x - center.x else { return nil }
-        let width = ridingPoint(depth: depth, lateral: 1, distance: elapsed).x - center.x
-        return max(-0.78, min(0.78, (point.x - center.x) / max(1, width)))
+        let width = ridingPoint(depth: depth, lateral: 1, distance: elapsed, course: course).x - center.x
+        return (point.x - center.x) / max(1, width)
     }
 
     /// Stronger perspective keeps distant rows small, while the contact row
@@ -142,8 +141,8 @@ enum HoneySlideRules {
     }
 
     static func potBounds(depth: Double, lateral: Double, elapsed: Double,
-                          billboardYScale: Double) -> CGRect {
-        let p = ridingPoint(depth: depth, lateral: lateral, distance: elapsed)
+                          billboardYScale: Double, course: HoneySlideCourse = .preview) -> CGRect {
+        let p = ridingPoint(depth: depth, lateral: lateral, distance: elapsed, course: course)
         let s = CGFloat(answerScale(depth: depth))
         let vertical = s * CGFloat(billboardYScale)
         let origin = CGPoint(x: p.x - 79 * s, y: p.y - 144 * vertical)
