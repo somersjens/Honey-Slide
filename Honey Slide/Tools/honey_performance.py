@@ -216,6 +216,10 @@ if "let questionNumber: Int" in source:
     driver = driver.replace("score: score, canPause: true", "score: score, questionNumber: 5, totalQuestions: 20, canPause: true")
 if "private var scorePotScale: CGFloat" in source:
     driver = driver.replace("(phone ? 59 : 0) + max(16, 58 * scale)", "max(phone ? 59 : 0, max(12, 22 * scale))")
+if "private var scorePanelWidth: CGFloat" in source:
+    driver = driver.replace("max(phone ? 59 : 0, max(12, 22 * scale))", "(phone ? 59 : 0) + max(12, 22 * scale)")
+    driver = driver.replace("width: proxy.size.width, prompt: prompt",
+                            "width: proxy.size.width - 2 * ((phone ? 59 : 0) + max(12, 22 * scale)), prompt: prompt")
 if "let rider: Image?" in source:
     start = driver.index("                HoneySlideWorld(simulation: simulation)")
     end = driver.index("                VStack {", start)
@@ -239,6 +243,10 @@ if "let collectionTarget: CGRect?" in source:
 if "private struct HoneyImpactEffects:" in source:
     driver = driver.replace("if let penalty = anchor.penalty, simulation.penaltyProgress != nil { HoneyPenaltyFlash(simulation: simulation, target: proxy[penalty]) }",
         "HoneyImpactEffects(simulation: simulation, rider: Image(nsImage: bear), reduceMotion: false, target: anchor.score.map { proxy[$0] }, penaltyTarget: anchor.penalty.map { proxy[$0] })")
+if "let penaltyProgress: Double?" not in source:
+    driver = driver.replace("penaltyProgress: simulation.penaltyProgress.map { _ in 0 },", "")
+    driver = driver.replace("penaltyProgress: simulation.penaltyProgress,", "")
+    driver = driver.replace(", penaltyTarget: anchor.penalty.map { proxy[$0] }", "")
 if args.simulator_app:
     if not args.assets:
         parser.error("--simulator-app requires --assets /path/to/built.app")

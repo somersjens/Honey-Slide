@@ -19,7 +19,6 @@ enum HoneySlideRules {
     static let straightHalfLength = 700.0
     static let collectionDuration = 0.65
     static let tumbleDuration = 0.95
-    static let penaltyDuration = 1.15
     // Double the world spans with speed, preserving the time spent in a channel.
     static let dividerLead = 420.0
     static let dividerTail = 120.0

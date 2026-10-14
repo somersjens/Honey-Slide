@@ -1,9 +1,9 @@
 import Foundation
 import CoreGraphics
 
-/// One uninterrupted flight in screen coordinates. The same eased parameter
-/// drives position and size, with zero velocity at both ends. The last arc
-/// rises above the score icon and drops into its exact centre.
+/// One uninterrupted flight in screen coordinates, with zero velocity at both
+/// ends. The pot moves sideways and shrinks before rising past the question
+/// sign, then drops into the score icon's exact centre.
 struct HoneyCollectionMotion {
     let center: CGPoint
     let scale: Double
@@ -16,13 +16,12 @@ struct HoneyCollectionMotion {
         let dx = target.x - origin.x, dy = target.y - origin.y
         // First travel out beside the question sign. The high final control
         // point produces one natural apex, followed by a short downward landing.
-        let lift = CGPoint(x: origin.x + dx * 0.92, y: origin.y + dy * 0.10)
+        let liftY = origin.y + dy * 0.10
         let approach = CGPoint(x: target.x, y: target.y - 332 * finalScale * 2.2)
-        center = CGPoint(x: v * v * v * origin.x + 3 * v * v * u * lift.x
-                         + 3 * v * u * u * approach.x + u * u * u * target.x,
-                         y: v * v * v * origin.y + 3 * v * v * u * lift.y
+        center = CGPoint(x: origin.x + dx * (1 - v * v * v * v),
+                         y: v * v * v * origin.y + 3 * v * v * u * liftY
                          + 3 * v * u * u * approach.y + u * u * u * target.y)
-        scale = initialScale + (finalScale - initialScale) * u
+        scale = finalScale + (initialScale - finalScale) * v * v
         rotation = -10 * sin(u * .pi)
     }
 }

@@ -235,7 +235,7 @@ public enum MathScaling {
 /// same level always walks the same path.
 ///
 /// One block is ten sums, stepping by the practised number. The next block is
-/// that same run with every varying number one higher. The tables cycle ×1 … ×10.
+/// that same run with every varying number one higher. The tables cycle from ×1 up to that table's maximum.
 public enum PracticeRoute {
     /// One block of ten. The next block is the same sums, one higher.
     public static let lapLength = 10
@@ -259,9 +259,17 @@ public enum PracticeRoute {
         n * (lapLength + 1 - place(step)) + roundShift(step)
     }
 
-    /// The multiplier of `t × ?`, cycling 1 … 10 and then repeating.
-    public static func tableMultiplier(step: Int) -> Int {
-        place(step) + 1
+    /// Highest multiplier a table may use: ×10 through the table of 10,
+    /// ×11 for 11, and ×12 from the table of 12 upward.
+    public static func maximumTableMultiplier(_ table: Int) -> Int {
+        min(12, max(10, table))
+    }
+
+    /// The multiplier of `t × ?`. It cycles 1 … that maximum, then repeats.
+    public static func tableMultiplier(table: Int, step: Int) -> Int {
+        let length = maximumTableMultiplier(table)
+        let wrapped = step % length
+        return (wrapped >= 0 ? wrapped : wrapped + length) + 1
     }
 
     /// The whole a fraction or percentage question works with, taken from a

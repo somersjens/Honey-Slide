@@ -476,13 +476,13 @@ public final class QuestionGenerator {
         let swapsSides: Bool
         switch route {
         case .fixed:
-            // ×1 … ×10, then the same ten again, always with the table in front.
-            multiplier = PracticeRoute.tableMultiplier(step: step)
+            // ×1 through this table's maximum, then the same lap again, always with the table in front.
+            multiplier = PracticeRoute.tableMultiplier(table: table, step: step)
             swapsSides = false
         case .shuffled:
             // Every multiplier exactly once per lap, and the table may stand on
             // either side of the ×.
-            multiplier = cycle("table", Array(1...12)).next(random)
+            multiplier = cycle("table.\(table)", Array(1...PracticeRoute.maximumTableMultiplier(table))).next(random)
             swapsSides = random.bool()
         }
         let answer = table * multiplier

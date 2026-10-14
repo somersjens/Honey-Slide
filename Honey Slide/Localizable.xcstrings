@@ -24,9 +24,6 @@
     "%lld" : {
 
     },
-    "−1" : {
-
-    },
     "character.bear" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -21160,23 +21157,6 @@
         }
       }
     },
-    "honey.rules %lld" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld questions · +1 Honey correct · −1 Honey wrong"
-          }
-        },
-        "nl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld vragen · +1 Honey goed · −1 Honey fout"
-          }
-        }
-      }
-    },
     "honey.steering" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -29452,7 +29432,7 @@
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je kunt in dit level maximaal **%lld Honey** verzamelen."
+            "value" : "Je kunt in dit level maximaal **%lld honing** verzamelen."
           }
         },
         "or" : {

@@ -319,7 +319,6 @@ public final class MemoryGame {
             outcome = .correct(cardsEarned: 1, usedBonusFish: false)
         } else {
             result.wrongAnswers += 1
-            cards = max(0, cards - 1)
             outcome = .wrong(correctOptionID: round.correctOption?.id ?? optionID,
                              lostHalfLife: false)
         }

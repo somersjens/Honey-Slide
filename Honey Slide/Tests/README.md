@@ -11,7 +11,7 @@ row positions and option order, shutters opening at the preceding collision,
 constant travel at irregular frame rates, and new rows beyond the draw distance.
 
 Full sessions cover each 20/30/40/50-question board, all-correct, all-wrong and
-mixed runs, +1/−1 scoring with a zero floor, duplicate contact protection, and
+mixed runs, +1 for correct answers and no point loss for mistakes, duplicate contact protection, and
 saving/resuming a zero-score run. Archived bonus parameters cannot alter points.
 Projection checks cover ten minutes of bends, tap-to-lane inversion at multiple
 depths, a stable final approach, larger spaced pots, and honey filling the view.
@@ -52,14 +52,13 @@ contact animation. Fixed
 
 Impact checks verify exactly one effect per contact, preservation of the old
 answer after row promotion, +1 Honey only after the collecting pot reaches the
-counter, a red penalty even at a zero score, pause behavior and effect cleanup.
+counter, unchanged scores on mistakes, pause behavior and effect cleanup.
 Collection-motion checks verify the exact contact/HUD endpoints, continuous
 motion and shrinking across all three lanes on phone/tablet, clearance from the
 question sign, a single apex above the counter followed by a downward landing,
 and zero endpoint velocity. The uninterrupted opaque pot flight takes 0.65
 seconds. Contact pots are smaller than the bear and keep their original aspect
-ratio. The penalty overlays the score digit for 1.15 seconds before the updated
-score appears; no extra HUD space is reserved for it.
+ratio. Mistakes retain the visible score while the missed pot tumbles into the honey.
 One hundred checkpoint landings verify straight channel geometry through
 approach and passage, plus continuous position, heading and turn rate where
 those landings meet bends. Straight sections retain the heading of their turn.

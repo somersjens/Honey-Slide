@@ -79,14 +79,9 @@ struct HoneySlideSimulation {
     var pendingHoney: Int {
         impacts.filter { $0.correct && $0.age(at: elapsed) < HoneySlideRules.collectionDuration }.count
     }
-    var penaltyProgress: Double? {
-        guard let last = impacts.last, !last.correct,
-              last.age(at: elapsed) < HoneySlideRules.penaltyDuration else { return nil }
-        return last.age(at: elapsed) / HoneySlideRules.penaltyDuration
-    }
     var hasVisibleImpact: Bool {
         impacts.contains {
-            $0.age(at: elapsed) < ($0.correct ? HoneySlideRules.collectionDuration : HoneySlideRules.penaltyDuration)
+            $0.age(at: elapsed) < ($0.correct ? HoneySlideRules.collectionDuration : HoneySlideRules.tumbleDuration)
         }
     }
     private var steeringTarget = 0.0

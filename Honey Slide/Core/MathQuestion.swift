@@ -85,7 +85,11 @@ public enum QuestionKind: String, Codable, Sendable, CaseIterable {
 /// Answers are compared by *meaning*, not by spelling, so a distractor can
 /// never accidentally be a second correct answer: "6", "06" and "6/1" all
 /// collapse to the same value, and "50%" never collides with the number 50.
-public struct AnswerValue: Hashable, Sendable, Comparable {
+///
+/// Stays off the module's default main actor: `Set` hashes it from a
+/// nonisolated context, and `map(AnswerValue.init)` needs a nonisolated
+/// initializer.
+nonisolated public struct AnswerValue: Hashable, Sendable, Comparable {
     private enum Form: Hashable {
         /// A rational number in lowest terms.
         case rational(numerator: Int, denominator: Int)

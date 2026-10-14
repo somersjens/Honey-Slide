@@ -26,6 +26,9 @@ struct HoneySlidePlayfield: View {
     var body: some View {
         GeometryReader { proxy in
             let scale = min(proxy.size.width / 1600, proxy.size.height / 900)
+            let sideMargin = max(12, 22 * scale)
+            let leadingInset = proxy.safeAreaInsets.leading + sideMargin
+            let trailingInset = proxy.safeAreaInsets.trailing + sideMargin
             ZStack {
                 Color.clear
                     .contentShape(Rectangle())
@@ -43,12 +46,12 @@ struct HoneySlidePlayfield: View {
                 .equatable()
                 .allowsHitTesting(false)
                 VStack {
-                    hud(scale: scale, width: proxy.size.width)
+                    hud(scale: scale, width: proxy.size.width - leadingInset - trailingInset)
                     Spacer()
                 }
                 .foregroundStyle(.white)
-                .padding(.leading, max(proxy.safeAreaInsets.leading, max(12, 22 * scale)))
-                .padding(.trailing, max(proxy.safeAreaInsets.trailing, max(12, 22 * scale)))
+                .padding(.leading, leadingInset)
+                .padding(.trailing, trailingInset)
                 .padding(.top, proxy.safeAreaInsets.top + max(10, 32 * scale))
                 .padding(.bottom, max(proxy.safeAreaInsets.bottom, 34 * scale))
             }
@@ -62,7 +65,7 @@ struct HoneySlidePlayfield: View {
                 // Keep the effects and numbered textures mounted before a hit.
                 // One layer carries the pot all the way above the HUD.
                 HoneyImpactEffects(simulation: simulation, rider: Image("1_bear"), reduceMotion: reduceMotion,
-                    target: anchor.score.map { proxy[$0] }, penaltyTarget: anchor.penalty.map { proxy[$0] })
+                    target: anchor.score.map { proxy[$0] })
                     .allowsHitTesting(false).accessibilityHidden(true)
             }
             .contentShape(Rectangle())
@@ -93,7 +96,6 @@ struct HoneySlidePlayfield: View {
                  questionNumber: min(model.totalQuestions, max(1, model.round?.number ?? model.visibleRounds.first?.number ?? model.roundNumber)),
                  totalQuestions: model.totalQuestions,
                  canPause: !model.isGameOver,
-                 penaltyProgress: simulation.penaltyProgress.map { _ in 0 },
                  showsFeedback: simulation.feedbackRemaining > 0 && !simulation.lastWasCorrect,
                  missedChallenge: displayedCorrection, onPause: onPause)
             .equatable()
@@ -1182,7 +1184,6 @@ struct HoneyPotIllustration: View, Equatable {
 
 private struct HoneyHUDAnchors {
     var score: Anchor<CGRect>?
-    var penalty: Anchor<CGRect>?
 }
 
 private struct HoneyScoreAnchor: PreferenceKey {
@@ -1190,7 +1191,6 @@ private struct HoneyScoreAnchor: PreferenceKey {
     static func reduce(value: inout HoneyHUDAnchors, nextValue: () -> HoneyHUDAnchors) {
         let next = nextValue()
         if let score = next.score { value.score = score }
-        if let penalty = next.penalty { value.penalty = penalty }
     }
 }
 
@@ -1201,7 +1201,6 @@ private struct HoneyImpactEffects: View {
     let rider: Image
     let reduceMotion: Bool
     let target: CGRect?
-    let penaltyTarget: CGRect?
     private var potTexts: [String] {
         Array(Set(simulation.checkpoints.prefix(4).flatMap { $0.options.map(\.text) }
                   + simulation.impacts.map(\.text))).sorted()
@@ -1209,25 +1208,12 @@ private struct HoneyImpactEffects: View {
     var body: some View {
         Canvas { context, size in
             drawCollection(in: context, size: size)
-            if let progress = simulation.penaltyProgress, let target = penaltyTarget,
-               let penalty = context.resolveSymbol(id: "penalty") {
-                var badge = context
-                let pulse = 1 + sin(min(1, progress * 5) * .pi) * 0.14
-                badge.opacity = min(1, (1 - progress) * 7)
-                badge.translateBy(x: target.midX, y: target.midY)
-                badge.scaleBy(x: target.width / 120 * pulse, y: target.width / 120 * pulse)
-                badge.draw(penalty, at: .zero)
-            }
         } symbols: {
             ForEach(potTexts, id: \.self) { text in
                 HoneyBitmapSymbol(key: "pot:\(text)", size: CGSize(width: 308, height: 332),
                     content: HoneyPotIllustration(text: text)).equatable().tag("pot:\(text)")
             }
             rider.resizable().scaledToFit().frame(width: 400, height: 400 * 1312 / 1247).tag("rider")
-            Text("−1").font(.system(size: 90, weight: .black, design: .rounded))
-                .foregroundStyle(Color(red: 0.79, green: 0.085, blue: 0.08))
-                .shadow(color: .white.opacity(0.6), radius: 0, y: 2)
-                .frame(width: 120).tag("penalty")
         }
     }
 
@@ -1288,18 +1274,22 @@ private struct HoneyHUD: View, Equatable {
     let questionNumber: Int
     let totalQuestions: Int
     let canPause: Bool
-    let penaltyProgress: Double?
     let showsFeedback: Bool
     let missedChallenge: String
     let onPause: () -> Void
 
     private var buttonSide: CGFloat { 120 * scale }
     private var scorePotScale: CGFloat { 67.2 * scale / 154 }
+    private var progressWidth: CGFloat { 244 * scale }
+    private var scorePanelWidth: CGFloat { 67.2 * scale + 16 * scale + progressWidth + 64 * scale }
+    private var questionPanelWidth: CGFloat {
+        min(760 * scale, width * 0.50, max(0, width - 2 * (scorePanelWidth + 20 * scale)))
+    }
 
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.scale == rhs.scale && lhs.width == rhs.width && lhs.prompt == rhs.prompt && lhs.score == rhs.score && lhs.canPause == rhs.canPause
             && lhs.questionNumber == rhs.questionNumber && lhs.totalQuestions == rhs.totalQuestions
-            && lhs.penaltyProgress == rhs.penaltyProgress && lhs.showsFeedback == rhs.showsFeedback
+            && lhs.showsFeedback == rhs.showsFeedback
             && lhs.missedChallenge == rhs.missedChallenge
     }
 
@@ -1326,7 +1316,7 @@ private struct HoneyHUD: View, Equatable {
                     .minimumScaleFactor(0.45).lineLimit(1)
                     .foregroundStyle(Color(red: 0.25, green: 0.10, blue: 0.03))
                     .padding(.horizontal, 38 * scale)
-                    .frame(width: min(width * 0.50, 760 * scale), height: 120 * scale)
+                    .frame(width: questionPanelWidth, height: buttonSide)
                     .background(HoneyQuestionSign())
                     .shadow(color: .brown.opacity(0.25), radius: 0, y: 6 * scale)
                 if showsFeedback && !missedChallenge.isEmpty {
@@ -1340,43 +1330,29 @@ private struct HoneyHUD: View, Equatable {
     }
 
     private var scorePanel: some View {
-        HStack(spacing: 8 * scale) {
-            HoneyPotIllustration(text: penaltyProgress == nil ? "\(score)" : "", showsShadow: false)
+        HStack(spacing: 16 * scale) {
+            HoneyPotIllustration(text: "\(score)", showsShadow: false)
                 .frame(width: 154 * scorePotScale, height: 166 * scorePotScale)
                 .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(score: $0) }
-                .overlay {
-                    // The penalty replaces the digit on the pot's face.
-                    Color.clear
-                        .frame(width: 86 * scorePotScale, height: 78 * scorePotScale)
-                        .anchorPreference(key: HoneyScoreAnchor.self, value: .bounds) { HoneyHUDAnchors(penalty: $0) }
-                        .offset(y: 9 * scorePotScale)
-                }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("\(Currency.name) \(score)")
                 .accessibilityIdentifier("honey-score")
 
             progressIndicator
         }
-        .padding(.horizontal, 26 * scale)
-        .frame(height: buttonSide)
+        .padding(.horizontal, 32 * scale)
+        .frame(width: scorePanelWidth, height: buttonSide)
         .background(HoneyQuestionSign(showsHoney: false))
         .environment(\.layoutDirection, .leftToRight)
     }
 
     private var progressIndicator: some View {
-        VStack(spacing: 3 * scale) {
-            Text(verbatim: "\(questionNumber)")
-                .font(.system(size: 30 * scale, weight: .black, design: .rounded))
-            Rectangle()
-                .fill(HoneyPotArtwork.darkWood.opacity(0.35))
-                .frame(width: 24 * scale, height: 2 * scale)
-            Text(verbatim: "\(totalQuestions)")
-                .font(.system(size: 22 * scale, weight: .bold, design: .rounded))
-                .opacity(0.8)
-        }
+        Text(verbatim: "\(questionNumber) / \(totalQuestions)")
+        .font(.system(size: 64 * scale, weight: .black, design: .rounded))
         .monospacedDigit()
+        .lineLimit(1)
         .foregroundStyle(Color(red: 0.25, green: 0.10, blue: 0.03))
-        .frame(width: 46 * scale, height: 82 * scale)
+        .frame(width: progressWidth, height: 82 * scale)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L("honey.progress \(questionNumber) \(totalQuestions)"))
         .accessibilityIdentifier("honey-progress")

@@ -20,13 +20,13 @@ import CoreGraphics
         checkCollectionMotion()
         checkStraightLandings()
         checkCachedProjection()
-        print("PASS: full-tube divider clearance through answered tails, immediate freedom before/after walls, 440 units/s with 6.6-second cadence, rounded, irregular course shapes, straight unattended travel, rail release at opposite turns and fixed-width verges, consistent slow-frame physics, continuous camera passage, straight checkpoint landings with stable dividers, pot impacts and Honey collection, fixed-question sessions and ±1 scoring, ten-minute projection and undistorted pot proportions")
+        print("PASS: full-tube divider clearance through answered tails, immediate freedom before/after walls, 440 units/s with 6.6-second cadence, rounded, irregular course shapes, straight unattended travel, rail release at opposite turns and fixed-width verges, consistent slow-frame physics, continuous camera passage, straight checkpoint landings with stable dividers, pot impacts and Honey collection, fixed-question sessions and scores that only increase, ten-minute projection and undistorted pot proportions")
     }
 
     private static func checkCollectionMotion() {
         // All lanes and phone/tablet proportions: the first pose must match
         // the contact pot, the last must match the HUD, and neither can snap.
-        for viewport in [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834)] {
+        for viewport in [CGSize(width: 667, height: 375), CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834)] {
             for lane in -1...1 {
                 let hudScale = min(viewport.width / 1600, viewport.height / 900)
                 let ground = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
@@ -35,11 +35,15 @@ import CoreGraphics
                 let origin = CGPoint(x: ground.x / 1600 * viewport.width,
                     y: ground.y / 900 * viewport.height - 61 * potScale * viewport.width / 1600)
                 let safeInset = viewport.width == 852 ? 59.0 : 0
-                let target = CGPoint(x: viewport.width - safeInset - (58 + 127.5) * hudScale, y: 92 * hudScale)
+                let sideInset = safeInset + max(12, 22 * hudScale)
+                let hudWidth = viewport.width - 2 * sideInset
+                let scorePanelWidth = (67.2 + 16 + 244 + 64) * hudScale
+                let target = CGPoint(x: viewport.width - sideInset - scorePanelWidth + (32 + 67.2 / 2) * hudScale,
+                                     y: max(10, 32 * hudScale) + 60 * hudScale)
                 let initialScale = potScale * viewport.width / 1600 / 2
-                let finalScale = 71 * hudScale / 308
-                let signWidth = min(viewport.width * 0.5, 760 * hudScale)
-                let sign = CGRect(x: (viewport.width - signWidth) / 2, y: 32 * hudScale,
+                let finalScale = 67.2 * hudScale / 308
+                let signWidth = min(760 * hudScale, hudWidth * 0.5, hudWidth - 2 * (scorePanelWidth + 20 * hudScale))
+                let sign = CGRect(x: (viewport.width - signWidth) / 2, y: max(10, 32 * hudScale),
                                   width: signWidth, height: 120 * hudScale)
                 func pose(_ progress: Double) -> HoneyCollectionMotion {
                     HoneyCollectionMotion(progress: progress, origin: origin, target: target,
@@ -192,7 +196,7 @@ import CoreGraphics
             assert(engine.finishResolving()); engine.advance()
             assert(engine.turnCardsOver()); assert(engine.beginAnswering())
             ride.synchronize(rounds: engine.visibleRounds, stage: 2, acceptingInput: true)
-            assert(engine.cards == score - 1)
+            assert(engine.cards == score)
             assert(engine.completedQuestions == 11)
             assert(ride.activeCheckpoint!.id == future.id)
             assert(ride.activeCheckpoint!.worldPosition == future.worldPosition)
@@ -237,12 +241,15 @@ import CoreGraphics
                     for n in 0..<engine.maximumRounds {
                         assert(engine.state == .answering && engine.roundNumber == n + 1)
                         assert(engine.completedQuestions == n)
-                        // All wrong, all correct, and a mix including a zero-score floor.
+                        // All wrong, all correct, and mistakes before/after earning honey.
                         let right = pattern == 1 || (pattern == 2 && n > 1 && n % 3 != 0)
                         let option = engine.round!.options.first { $0.isCorrect == right }!
+                        let previousScore = engine.cards
                         assert(engine.select(optionID: option.id, usesBonusFish: true, wrongAnswerCostHalves: 6) != .ignored)
-                        expectedScore = right ? expectedScore + 1 : max(0, expectedScore - 1)
+                        if right { expectedScore += 1 }
                         assert(engine.cards == expectedScore && engine.result.cardsEarned == expectedScore)
+                        assert(engine.cards >= previousScore)
+                        assert(engine.cards == engine.result.correctAnswers)
                         assert(engine.livesRemaining == GameConfig.startingLives)
                         assert(engine.completedQuestions == n + 1)
                         assert(engine.select(optionID: option.id) == .ignored)
@@ -509,7 +516,7 @@ import CoreGraphics
             assert(!ride.visualOutcomeSettled)
             assert(ride.pendingHoney == (correct ? 1 : 0))
             assert(max(0, engine.cards - ride.pendingHoney) == 0)
-            assert(ride.penaltyProgress == (correct ? nil : 0))
+            assert(ride.hasVisibleImpact)
             // A duplicate collision, a new question and a paused clock cannot
             // restart an effect or change the number carried by the old pot.
             ride.markSelected(checkpointID: row.id, index: index, correct: correct)
@@ -526,12 +533,12 @@ import CoreGraphics
             assert(ride.pendingHoney == (correct ? 1 : 0))
             ride.advance(seconds: duration / 2 + 0.001)
             assert(impact.progress(at: ride.elapsed) == 1 && ride.pendingHoney == 0)
+            assert(!ride.hasVisibleImpact)
             if !correct {
-                assert(ride.penaltyProgress != nil) // remains legible after the splash
-                assert(engine.cards == 0) // no debt at a zero score
+                assert(engine.cards == 0)
             }
             ride.advance(seconds: 2.1)
-            assert(ride.impacts.isEmpty && ride.penaltyProgress == nil)
+            assert(ride.impacts.isEmpty)
             assert(ride.visualOutcomeSettled && ride.lastContact?.id == row.id)
             // Frame stalls can skip drawing an effect's last frame; they must
             // never strand the final question behind an unfinished result.

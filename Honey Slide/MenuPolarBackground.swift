@@ -28,6 +28,13 @@ enum HoneyMenuPalette {
         LinearGradient(colors: [paper, cream],
                        startPoint: .topLeading, endPoint: .bottomTrailing)
     }
+    static var selectedHoneyFill: LinearGradient {
+        LinearGradient(stops: [.init(color: gloss, location: 0),
+                               .init(color: honey, location: 0.35),
+                               .init(color: honey, location: 0.72),
+                               .init(color: Color(red: 0.93, green: 0.59, blue: 0.12), location: 1)],
+                       startPoint: .top, endPoint: .bottom)
+    }
 }
 
 /// Sunlit parchment with connected combs at the edges and a pool of honey
@@ -191,8 +198,26 @@ private struct HoneySyrupLip: Shape {
     }
 }
 
-/// Rounded, opaque cream surfaces and golden pressed selections share the
-/// same rim, inset highlight and shallow lower bevel. No extra layout padding.
+/// A rounded reflection follows the surface of pooled honey.
+private struct HoneySurfaceReflection: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.width * 0.08, y: rect.height * 0.16))
+        path.addCurve(to: CGPoint(x: rect.width * 0.76, y: rect.height * 0.13),
+                      control1: CGPoint(x: rect.width * 0.24, y: rect.height * 0.04),
+                      control2: CGPoint(x: rect.width * 0.59, y: rect.height * 0.06))
+        path.addCurve(to: CGPoint(x: rect.width * 0.29, y: rect.height * 0.36),
+                      control1: CGPoint(x: rect.width * 0.83, y: rect.height * 0.24),
+                      control2: CGPoint(x: rect.width * 0.48, y: rect.height * 0.26))
+        path.addCurve(to: CGPoint(x: rect.width * 0.08, y: rect.height * 0.16),
+                      control1: CGPoint(x: rect.width * 0.08, y: rect.height * 0.43),
+                      control2: CGPoint(x: rect.width * 0.04, y: rect.height * 0.26))
+        path.closeSubpath()
+        return path
+    }
+}
+
+/// Cream controls and amber selections share a shallow caramel bevel.
 private struct HoneyControlSurface<Surface: InsettableShape>: ViewModifier {
     let shape: Surface
     let active: Bool
@@ -204,7 +229,15 @@ private struct HoneyControlSurface<Surface: InsettableShape>: ViewModifier {
                 shape.fill(active ? HoneyMenuPalette.caramel.opacity(0.72)
                                   : HoneyMenuPalette.comb.opacity(0.30))
                     .offset(y: active ? 3 : 2)
-                shape.fill(active ? HoneyMenuPalette.honeyFill : HoneyMenuPalette.creamFill)
+                shape.fill(active ? HoneyMenuPalette.selectedHoneyFill : HoneyMenuPalette.creamFill)
+                    .overlay {
+                        if active {
+                            HoneySurfaceReflection()
+                                .fill(LinearGradient(colors: [HoneyMenuPalette.cream.opacity(0.55),
+                                                              HoneyMenuPalette.gloss.opacity(0.12)],
+                                                     startPoint: .top, endPoint: .bottom))
+                        }
+                    }
                     .overlay(alignment: .top) {
                         if honeyLip {
                             HoneySyrupLip()
@@ -214,7 +247,8 @@ private struct HoneyControlSurface<Surface: InsettableShape>: ViewModifier {
                     }
                     .overlay {
                         shape.inset(by: 2)
-                            .stroke(.white.opacity(active ? 0.45 : 0.85), lineWidth: 1)
+                            .stroke(active ? HoneyMenuPalette.gloss.opacity(0.65)
+                                           : HoneyMenuPalette.paper.opacity(0.85), lineWidth: 1)
                     }
                     .overlay {
                         shape.strokeBorder(active ? HoneyMenuPalette.caramel.opacity(0.58)
