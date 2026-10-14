@@ -6,6 +6,7 @@ The same renderer, core simulation and artwork are compiled with -O. Keep the
 host idle and use identical samples/scale for before/after comparisons.
 """
 import argparse
+import json
 import pathlib
 import re
 import plistlib
@@ -18,6 +19,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--source-dir", type=pathlib.Path, default=ROOT)
 parser.add_argument("--output", type=pathlib.Path, default=pathlib.Path("/tmp/honey-performance"))
 parser.add_argument("--samples", type=int, default=24)
+parser.add_argument("--scenario-prefix", help="Render only scenes with this prefix, e.g. finish-")
 parser.add_argument("--compile-only", action="store_true", help="Leave the compiled runner for Instruments")
 parser.add_argument("--simulator-app", action="store_true", help="Build an isolated 32-second iOS simulator workload")
 parser.add_argument("--assets", type=pathlib.Path, help="Existing simulator app containing Assets.car")
@@ -212,8 +214,207 @@ private struct BenchmarkScene: View {
     }
 }
 '''
+if "HoneyRaceArtwork" in source:
+    driver = driver.replace("divider-", "steering-")
+    # The standalone runner has no compiled string catalog.
+    prefix = prefix.replace('func L(key: String) -> String { key == "honey.pause" ? "Pauze" : "Antwoord" }',
+        'func L(key: String) -> String { ["honey.pause": "Pauze", "honey.race.moment.normal": "Kies je route", "honey.race.moment.narrow": "Smalle doorgang", "honey.race.moment.moving": "Bewegende vaten", "honey.race.moment.swapping": "Vaten wisselen", "honey.race.moment.quick": "Snelle beslissing", "honey.race.moment.risk": "Risico: boost vóór het antwoord"][key] ?? "Antwoord" }')
+
+    driver = driver.replace('("approach", 5.5, true), ("correct", 6.7, true), ("wrong", 6.7, false)',
+        '("approach", 6.2, true), ("correct", 7.5, true), ("wrong", 7.5, false)')
+    driver = driver.replace('        for (scenario, time, correct) in scenarios {',
+        '        scenarios += HoneyAnswerMoment.allCases.map { ("race-" + $0.rawValue, 4.5, true) }\n        for (scenario, time, correct) in scenarios {')
+    driver = driver.replace('                while initial.elapsed < time {', r'''                if scenario.hasPrefix("race-") {
+                    let moment = String(scenario.dropFirst(5))
+                    for seed in 0..<200 {
+                        var candidate = HoneySlideSimulation(courseSeed: UInt64(seed))
+                        candidate.configureViewport(size)
+                        candidate.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true,
+                            completed: 20, streak: 8)
+                        if candidate.activeCheckpoint?.moment.rawValue == moment { initial = candidate; break }
+                    }
+                }
+                while initial.elapsed < time {''')
+    driver = driver.replace('initial.steer(to: Double(index - 1) * HoneySlideRules.laneSpacing)',
+        'initial.steer(to: row.lateralPosition(at: index, elapsed: initial.elapsed))')
+    driver = driver.replace('hit.option.isCorrect', 'hit.isCorrect')
+    driver = driver.replace('_ = engine.select(optionID: hit.option.id);',
+        '_ = hit.option.map { engine.select(optionID: $0.id, usesBonusFish: false) } ?? engine.missAnswer();')
+    driver = driver.replace('initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)',
+        'initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true, completed: engine.completedQuestions, streak: engine.correctStreak, mistakes: engine.mistakeStreak)')
+    driver = driver.replace('        scenarios += HoneyAnswerMoment.allCases.map { ("race-" + $0.rawValue, 4.5, true) }',
+        '        scenarios += HoneyAnswerMoment.allCases.map { ("race-" + $0.rawValue, 4.5, true) }\n        scenarios += (2...5).map { ("width-" + String($0), 0.0, true) }\n        scenarios += ["jump", "landing", "whirlpool", "blocked-log", "log-pass"].map { ("effect-" + $0, 0.0, true) }')
+    driver = driver.replace('if scenario.hasPrefix("race-") {', 'if scenario.hasPrefix("race-") || scenario.hasPrefix("width-") {')
+    driver = driver.replace('if candidate.activeCheckpoint?.moment.rawValue == moment { initial = candidate; break }',
+        'if scenario.hasPrefix("width-") ? candidate.activeCheckpoint?.options.count == Int(scenario.dropFirst(6)) : candidate.activeCheckpoint?.moment.rawValue == moment { initial = candidate; break }')
+    driver = driver.replace('                while initial.elapsed < time {',
+        '                while (scenario.hasPrefix("width-") ? initial.distance + HoneySlideRules.playerAhead < initial.activeCheckpoint!.worldPosition - 1050 : initial.elapsed < time) {\n                    if scenario.hasPrefix("width-") { initial.steer(to: 0) }')
+    driver = driver.replace('                while (scenario.hasPrefix("width-")', r'''                if scenario.hasPrefix("effect-") {
+                    let kind: HoneyTrackItemKind = ["effect-jump", "effect-landing"].contains(scenario) ? .ramp : scenario == "effect-whirlpool" ? .whirlpool : .log
+                    var found = false
+                    for seed in 0..<100 where !found {
+                        var candidate = HoneySlideSimulation(courseSeed: UInt64(seed))
+                        candidate.configureViewport(size)
+                        candidate.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true, completed: 8)
+                        guard let item = candidate.items.first(where: { $0.checkpointID == 0 && $0.kind == kind }) else { continue }
+                        for _ in 0..<2000 {
+                            candidate.steer(to: item.lateral)
+                            if kind != .log, let log = candidate.items.filter({ $0.kind == .log && $0.worldPosition - candidate.distance - HoneySlideRules.playerAhead > -200 && $0.worldPosition - candidate.distance - HoneySlideRules.playerAhead < 800 }).min(by: { $0.worldPosition < $1.worldPosition }), abs(candidate.lateral - log.lateral) < 0.6 || candidate.blockedLogID != nil {
+                                candidate.steer(to: log.lateral >= 0 ? -candidate.railLimit : candidate.railLimit)
+                            }
+                            candidate.advance(seconds: 1.0 / 120)
+                            let contacted = kind == .log ? candidate.blockedLogID == item.id : candidate.items.first(where: { $0.id == item.id })?.contactedAt != nil
+                            if contacted {
+                                if kind == .ramp, let jump = candidate.jump {
+                                    let target = scenario == "effect-landing" ? jump.landingPosition + 5 : jump.peakPosition - 25
+                                    while candidate.distance + HoneySlideRules.playerAhead < target { candidate.advance(seconds: 1.0 / 120) }
+                                }
+                                if scenario == "effect-log-pass" {
+                                    let depth = HoneySlideRules.depth(ahead: item.worldPosition - candidate.distance)
+                                    let position = HoneySlideRules.ridingPoint(depth: depth, lateral: item.lateral,
+                                        distance: candidate.travelTime, course: candidate.course, cameraZoom: candidate.cameraZoom)
+                                    let origin = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth, lateral: 0,
+                                        distance: candidate.travelTime, course: candidate.course, cameraZoom: candidate.cameraZoom).x
+                                    let side = item.lateral >= 0 ? -1.0 : 1.0
+                                    let edge = position.x + (side < 0 ? HoneyLogGeometry.backCenter - HoneyLogGeometry.backRadius
+                                        : HoneyLogGeometry.frontCenter + HoneyLogGeometry.frontRadius) * depth / HoneySlideRules.playerDepth * candidate.cameraZoom
+                                    let width = HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) * candidate.cameraZoom
+                                    candidate.steer(to: (edge - origin - candidate.logFootprint.center.x + side * (sqrt(candidate.logFootprint.xx) + 4)) / width)
+                                    for _ in 0..<240 {
+                                        candidate.advance(seconds: 1.0 / 120)
+                                        if candidate.blockedLogID == nil { break }
+                                    }
+                                    precondition(candidate.blockedLogID == nil, "Log pass remained blocked")
+                                }
+                                initial = candidate; found = true; break
+                            }
+                            if candidate.distance + HoneySlideRules.playerAhead > item.worldPosition + 100 { break }
+                        }
+                    }
+                    precondition(found, "No effect preview for \(scenario)")
+                }
+                while (scenario.hasPrefix("width-")''')
+    driver = driver.replace('@main struct RendererPerformance {', r'''
+private struct RaceArtworkSheet: View {
+    private func label(_ kind: HoneyTrackItemKind) -> String {
+        switch kind {
+        case .boost: return "Boost"
+        case .whirlpool: return "Draaikolk"
+        case .ramp: return "Springplank"
+        case .hive: return "Bijenkorf"
+        case .log: return "Boomstam"
+        }
+    }
+    var body: some View {
+        VStack(spacing: 24) {
+            HStack(spacing: 14) {
+                HoneyPotIllustration().frame(width: 44, height: 48)
+                Text("Honey Slide · baanobjecten")
+                    .font(.system(size: 32, weight: .black, design: .rounded))
+                Spacer()
+            }
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(250), spacing: 16), count: 5), spacing: 20) {
+                ForEach(HoneyTrackItemKind.allCases, id: \.self) { kind in
+                    VStack(spacing: 0) {
+                        Canvas { context, size in
+                            var c = context
+                            c.translateBy(x: size.width / 2, y: size.height - 50)
+                            let scale = kind == .whirlpool ? 0.37 : 0.64
+                            c.scaleBy(x: scale, y: scale)
+                            HoneyRaceArtwork.draw(kind, in: &c)
+                        }
+                        .frame(width: 250, height: 285)
+                        Text(label(kind))
+                            .font(.system(size: 22, weight: .heavy, design: .rounded))
+                            .padding(.bottom, 18)
+                    }
+                    .background(Color(red: 1, green: 0.97, blue: 0.85), in: RoundedRectangle(cornerRadius: 24))
+                }
+            }
+        }
+        .foregroundStyle(Color(red: 0.29, green: 0.12, blue: 0.025))
+        .padding(32)
+        .frame(width: 1400, height: 470)
+        .background(Color(red: 0.96, green: 0.89, blue: 0.70))
+    }
+}
+@main struct RendererPerformance {''')
+    driver = driver.replace('        var report: [[String: Any]] = []', r'''
+        let gallery = ImageRenderer(content: RaceArtworkSheet())
+        gallery.scale = 1
+        if let cg = gallery.cgImage {
+            let dest = CGImageDestinationCreateWithURL(URL(fileURLWithPath: "\(output)/race-artwork.png") as CFURL,
+                UTType.png.identifier as CFString, 1, nil)!
+            CGImageDestinationAddImage(dest, cg, nil); _ = CGImageDestinationFinalize(dest)
+        }
+        var report: [[String: Any]] = []''')
+    driver = driver.replace('                    initial.advance(seconds: 1.0 / 120)', r'''                    if let log = initial.items.filter({ $0.kind == .log && $0.worldPosition - initial.distance - HoneySlideRules.playerAhead > -200 && $0.worldPosition - initial.distance - HoneySlideRules.playerAhead < 800 }).min(by: { $0.worldPosition < $1.worldPosition }), abs(initial.lateral - log.lateral) < 0.6 || initial.blockedLogID != nil {
+                        initial.steer(to: log.lateral >= 0 ? -initial.railLimit : initial.railLimit)
+                    }
+                    initial.advance(seconds: 1.0 / 120)''')
 if "let questionNumber: Int" in source:
-    driver = driver.replace("score: score, canPause: true", "score: score, questionNumber: 5, totalQuestions: 20, canPause: true")
+    driver = driver.replace("score: score,", "score: score, questionNumber: 5, totalQuestions: 20,", 1)
+if "simulation.isFinishComplete" in source:
+    driver = driver.replace('    var missedChallenge =', '    var questionNumber = 5\n    var totalQuestions = 20\n    var missedChallenge =', 1)
+    driver = driver.replace('questionNumber: 5, totalQuestions: 20', 'questionNumber: questionNumber, totalQuestions: totalQuestions')
+    driver = driver.replace('canPause: true', 'canPause: !simulation.hasFinishStarted')
+    driver = driver.replace('onPause: {}).equatable()', 'onPause: {}).equatable().opacity(simulation.hasFinishLaunched ? max(0, 1 - simulation.finishFlightProgress * 6) : 1)')
+    driver = driver.replace('        for (scenario, time, correct) in scenarios {',
+        '        scenarios += ["approach", "funnel", "launch", "out"].map { ("finish-" + $0, 0.0, true) }\n        scenarios += ["second", "resumed"].map { ("run-" + $0, 0.0, true) }\n        for (scenario, time, correct) in scenarios {')
+    driver = driver.replace('                while (scenario.hasPrefix("width-")', r'''                if scenario.hasPrefix("finish-") {
+                    while engine.completedQuestions < engine.maximumRounds - 1 {
+                        _ = engine.select(optionID: engine.round!.correctOption!.id)
+                        _ = engine.finishResolving(); engine.advance()
+                        _ = engine.turnCardsOver(); _ = engine.beginAnswering()
+                    }
+                    for seed in 0..<150 {
+                        var candidate = HoneySlideSimulation(courseSeed: UInt64(seed))
+                        candidate.configureViewport(size)
+                        candidate.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true,
+                            completed: engine.completedQuestions, streak: 8, totalQuestions: engine.maximumRounds)
+                        if candidate.activeCheckpoint?.options.count == 5,
+                           !candidate.items.contains(where: { $0.kind == .ramp && $0.id != candidate.finish?.rampID }) {
+                            initial = candidate; break
+                        }
+                    }
+                    let row = initial.activeCheckpoint!
+                    var frames = 0
+                    while scenario == "finish-approach" ? row.worldPosition - initial.distance - HoneySlideRules.playerAhead > 700 : initial.crossing(roundID: engine.round!.id) == nil {
+                        let index = row.options.firstIndex(where: { $0.isCorrect })!
+                        initial.steer(to: row.lateralPosition(at: index, elapsed: initial.elapsed))
+                        if let log = initial.items.filter({ $0.kind == .log && $0.worldPosition - initial.distance - HoneySlideRules.playerAhead > -200 && $0.worldPosition - initial.distance - HoneySlideRules.playerAhead < 800 }).min(by: { $0.worldPosition < $1.worldPosition }), abs(initial.lateral - log.lateral) < 0.6 || initial.blockedLogID != nil {
+                            initial.steer(to: log.lateral >= 0 ? -initial.railLimit : initial.railLimit)
+                        }
+                        initial.advance(seconds: 1.0 / 120)
+                        frames += 1; precondition(frames < 3000)
+                    }
+                    if scenario != "finish-approach", let hit = initial.crossing(roundID: engine.round!.id) {
+                        _ = hit.option.map { engine.select(optionID: $0.id) } ?? engine.missAnswer()
+                        _ = engine.finishResolving(); engine.advance()
+                        initial.markSelected(checkpointID: hit.checkpointID, index: hit.index, correct: hit.isCorrect)
+                        if scenario == "finish-funnel" {
+                            while initial.distance + HoneySlideRules.playerAhead < row.worldPosition + HoneySlideRules.finishFunnelLength * 0.6 { initial.advance(seconds: 1.0 / 120) }
+                        } else {
+                            while !initial.hasFinishLaunched { initial.advance(seconds: 1.0 / 120) }
+                            initial.advance(seconds: scenario == "finish-launch" ? 0.015 : HoneySlideRules.finishFlightDuration)
+                        }
+                    }
+                }
+                if scenario.hasPrefix("run-") {
+                    for _ in 0..<(scenario == "run-second" ? 1 : 5) {
+                        _ = engine.select(optionID: engine.round!.correctOption!.id)
+                        _ = engine.finishResolving(); engine.advance()
+                        _ = engine.turnCardsOver(); _ = engine.beginAnswering()
+                    }
+                    initial = HoneySlideSimulation(courseSeed: 17)
+                    initial.configureViewport(size)
+                    initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true,
+                        completed: engine.completedQuestions, streak: engine.correctStreak)
+                }
+                while (scenario.hasPrefix("width-")''')
+    driver = driver.replace('let prompt = engine.round?.question.prompt ?? "…"',
+        'let prompt = sim.hasFinishStarted ? "Finish!" : engine.round?.question.prompt ?? "…"\n                let questionNumber = scenario.hasPrefix("finish-") ? engine.maximumRounds : scenario.hasPrefix("run-") ? engine.round!.number : 5\n                let totalQuestions = scenario.hasPrefix("finish-") || scenario.hasPrefix("run-") ? engine.maximumRounds : 20')
+    driver = driver.replace('prompt: prompt, score: score)', 'prompt: prompt, score: score, questionNumber: questionNumber, totalQuestions: totalQuestions)')
 if "private var scorePotScale: CGFloat" in source:
     driver = driver.replace("(phone ? 59 : 0) + max(16, 58 * scale)", "max(phone ? 59 : 0, max(12, 22 * scale))")
 if "private var scorePanelWidth: CGFloat" in source:
@@ -351,6 +552,21 @@ class PerformanceDelegate: NSObject, UIApplicationDelegate {
     else:
         driver = driver.replace("// CLOCK_DECLARATION", "private let clock = Timer.publish(every: 1.0 / 60, on: .main, in: .common).autoconnect()")
         driver = driver.replace("// CLOCK_CALLBACK", ".onReceive(clock) { _ in advance(ProcessInfo.processInfo.systemUptime) }")
+if "HoneyRaceArtwork" in source and args.simulator_app:
+    driver = driver.replace('hit.option.isCorrect', 'hit.isCorrect')
+    driver = driver.replace('_ = engine.select(optionID: hit.option.id);',
+        '_ = hit.option.map { engine.select(optionID: $0.id, usesBonusFish: false) } ?? engine.missAnswer();')
+    driver = driver.replace('sim.steer(to: Double(lane - 1) * HoneySlideRules.laneSpacing)',
+        'sim.steer(to: row.lateralPosition(at: lane, elapsed: sim.elapsed))')
+    driver = driver.replace('sim.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)',
+        'sim.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true, completed: engine.completedQuestions, streak: engine.correctStreak, mistakes: engine.mistakeStreak)')
+    driver = driver.replace('        sim.advance(seconds: dt)', r'''        if !idleCourse, let log = sim.items.filter({ $0.kind == .log && $0.worldPosition - sim.distance - HoneySlideRules.playerAhead > -200 && $0.worldPosition - sim.distance - HoneySlideRules.playerAhead < 800 }).min(by: { $0.worldPosition < $1.worldPosition }), abs(sim.lateral - log.lateral) < 0.6 || sim.blockedLogID != nil {
+            sim.steer(to: log.lateral >= 0 ? -sim.railLimit : sim.railLimit)
+        }
+        sim.advance(seconds: dt)''')
+if args.scenario_prefix:
+    driver = driver.replace('for (scenario, time, correct) in scenarios {',
+        'for (scenario, time, correct) in scenarios.filter({ $0.0.hasPrefix(' + json.dumps(args.scenario_prefix, ensure_ascii=False) + ') }) {')
 with tempfile.TemporaryDirectory(prefix="honey-benchmark-") as temporary:
     tmp = pathlib.Path(temporary)
     generated = tmp / "RendererBenchmark.swift"

@@ -16,18 +16,24 @@ enum HoneyTubeGeometry {
     }
 
     static func footprint(in viewport: CGSize, elapsed: Double, heading: Double,
-                          reduceMotion: Bool) -> HoneyTubeFootprint {
-        let width = spriteWidth(in: viewport), height = width * imageAspect
+                          reduceMotion: Bool, cameraZoom: Double = 1, logContact: Bool = false) -> HoneyTubeFootprint {
+        let originalWidth = spriteWidth(in: viewport), originalHeight = originalWidth * imageAspect
+        let width = originalWidth * cameraZoom, height = width * imageAspect
         let angle = reduceMotion ? 0 : heading * .pi / 180
         let cosine = cos(angle), sine = sin(angle)
         let sx = 1600 / viewport.width, sy = 900 / viewport.height
         // Two physical pixels of clearance; the shape rotates around the same
         // image anchor as the renderer, rather than around its own centre.
-        let rx = width * 0.46 + 2, ry = height * 0.28 + 2
-        let offset = height * 0.212
+        // Logs touch the visible inflatable hull, whose front edge begins
+        // around 58% of the bear image. The taller wall ellipse includes the
+        // space around the shoulders and caused a visible gap against logs.
+        let clearance = logContact ? 0.5 : 2
+        let rx = width * (logContact ? 0.45 : 0.46) + clearance
+        let ry = height * (logContact ? 0.21 : 0.28) + clearance
+        let offset = height * (logContact ? 0.29 : 0.212)
         return HoneyTubeFootprint(
             center: CGPoint(x: -sine * offset * sx,
-                y: (viewport.height * 0.735 + cosine * offset
+                y: (viewport.height * 0.735 + (originalHeight - height) * 0.212 + cosine * offset
                     + bob(in: viewport, elapsed: elapsed, reduceMotion: reduceMotion)) * sy),
             xx: (rx * rx * cosine * cosine + ry * ry * sine * sine) * sx * sx,
             xy: (rx * rx - ry * ry) * sine * cosine * sx * sy,
@@ -58,27 +64,28 @@ struct HoneyTubeFootprint {
 enum HoneyDividerContact {
     static func forbiddenLateral(rowPosition: Double, boundary: Double,
                                  distance: Double, footprint: HoneyTubeFootprint,
-                                 course: HoneySlideCourse) -> ClosedRange<Double>? {
-        let far = rowPosition + HoneySlideRules.dividerTail - distance
+                                 course: HoneySlideCourse, cameraZoom: Double = 1,
+                                 tail: Double = HoneySlideRules.dividerTail) -> ClosedRange<Double>? {
+        let far = rowPosition + tail - distance
         let near = rowPosition - HoneySlideRules.dividerLead - distance
         guard far > HoneySlideRules.nearClipAhead else { return nil }
         let farDepth = HoneySlideRules.depth(ahead: far)
         let nearDepth = HoneySlideRules.depth(ahead: near)
-        let height = HoneySlideRules.dividerHeight
+        let height = HoneySlideRules.dividerHeight * cameraZoom
         let lowY = max(footprint.minY, HoneySlideRules.groundY(depth: farDepth) - height * farDepth)
         let highY = min(footprint.maxY, HoneySlideRules.groundY(depth: nearDepth))
         guard lowY < highY else { return nil }
         let playerX = HoneySlideRules.trackPoint(depth: HoneySlideRules.playerDepth, offset: 0,
-            distance: distance / HoneySlideRules.forwardSpeed, course: course).x
+            distance: distance / HoneySlideRules.forwardSpeed, course: course, cameraZoom: cameraZoom).x
         let half = HoneySlideRules.dividerHalfWidth + 0.005 // honey lip/stroke
-        let ridingWidth = HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth)
+        let ridingWidth = HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) * cameraZoom
 
         func interval(_ y: Double) -> ClosedRange<Double> {
             let lowDepth = max(farDepth, HoneySlideRules.groundDepth(screenY: y))
             let highDepth = min(nearDepth, HoneySlideRules.groundDepth(screenY: y, height: height))
             func edge(_ depth: Double, _ lateral: Double) -> Double {
                 HoneySlideRules.ridingPoint(depth: depth, lateral: lateral,
-                    distance: distance / HoneySlideRules.forwardSpeed, course: course).x - playerX
+                    distance: distance / HoneySlideRules.forwardSpeed, course: course, cameraZoom: cameraZoom).x - playerX
             }
             let left = min(edge(lowDepth, boundary - half), edge(highDepth, boundary - half))
             let right = max(edge(lowDepth, boundary + half), edge(highDepth, boundary + half))
@@ -115,5 +122,54 @@ enum HoneyDividerContact {
             }
         }
         return min(value(a), value(b), vc, vd)
+    }
+}
+
+/// Shared with the opaque bark silhouette and its visible cut end. Coordinates
+/// are local artwork pixels, before the world's billboard projection.
+enum HoneyLogGeometry {
+    static let backCenter = -142.0
+    static let frontCenter = 139.0
+    static let backRadius = 30.0
+    static let frontRadius = 41.0
+    static let centerY = -54.5
+    static let halfHeight = 62.5
+    static let minY = centerY - halfHeight
+    static let maxY = centerY + halfHeight
+
+    static func span(at y: Double) -> ClosedRange<Double> {
+        let fraction = (y - centerY) / halfHeight
+        let radius = sqrt(max(0, 1 - fraction * fraction))
+        return (backCenter - backRadius * radius)...(frontCenter + frontRadius * radius)
+    }
+}
+
+/// Contact follows the rendered log silhouette, rather than an enlarged world
+/// cuboid. Contact uses the visible front hull with half a pixel of clearance.
+enum HoneyLogContact {
+    static func forbidden(_ item: HoneyTrackItem, distance: Double, footprint: HoneyTubeFootprint,
+                          course: HoneySlideCourse, cameraZoom: Double, viewport: CGSize) -> ClosedRange<Double>? {
+        let ahead = item.worldPosition - distance
+        guard ahead > HoneySlideRules.nearClipAhead else { return nil }
+        let depth = HoneySlideRules.depth(ahead: ahead)
+        let scaleX = depth / HoneySlideRules.playerDepth * cameraZoom
+        let scaleY = scaleX * HoneySlideRules.billboardVerticalScale(viewport: viewport)
+        let position = HoneySlideRules.ridingPoint(depth: depth, lateral: item.lateral,
+            distance: distance / HoneySlideRules.forwardSpeed, course: course, cameraZoom: cameraZoom)
+        let low = max(footprint.minY, position.y + HoneyLogGeometry.minY * scaleY)
+        let high = min(footprint.maxY, position.y + HoneyLogGeometry.maxY * scaleY)
+        guard low < high else { return nil }
+        let width = HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) * cameraZoom
+        let origin = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth, lateral: 0,
+            distance: distance / HoneySlideRules.forwardSpeed, course: course, cameraZoom: cameraZoom).x
+        var lower = Double.infinity, upper = -Double.infinity
+        for sample in 0...32 {
+            let y = low + (high - low) * Double(sample) / 32
+            let span = HoneyLogGeometry.span(at: (y - position.y) / scaleY)
+            let slice = footprint.slice(at: y)
+            lower = min(lower, (position.x + span.lowerBound * scaleX - origin - slice.upperBound) / width)
+            upper = max(upper, (position.x + span.upperBound * scaleX - origin - slice.lowerBound) / width)
+        }
+        return lower...upper
     }
 }

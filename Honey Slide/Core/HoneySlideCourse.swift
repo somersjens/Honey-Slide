@@ -28,6 +28,7 @@ struct HoneySlideCourse {
     private var nextDirection: Double
     private var nextX = 0.0
     private var nextSlope = 0.0
+    private var finishStraight: (position: Double, x: Double, slope: Double)?
 
     init(seed: UInt64, initialSegments: Int = 16) {
         self.seed = seed
@@ -40,6 +41,12 @@ struct HoneySlideCourse {
         let required = max(1, Int(ceil((position - HoneySlideRules.playerAhead)
             / HoneySlideRules.checkpointSpacing)) + 1)
         if required > bends.count { appendSegments(count: required - bends.count) }
+    }
+
+    mutating func straightenFinish(after position: Double) {
+        guard finishStraight == nil else { return }
+        let anchor = sample(at: position)
+        finishStraight = (position, anchor.x, anchor.slope)
     }
 
     private mutating func appendSegments(count: Int) {
@@ -77,6 +84,9 @@ struct HoneySlideCourse {
     }
 
     func sample(at position: Double) -> Sample {
+        if let finish = finishStraight, position >= finish.position {
+            return Sample(x: finish.x + finish.slope * (position - finish.position), slope: finish.slope, turnRate: 0)
+        }
         let cell = Int(floor((position - HoneySlideRules.playerAhead) / HoneySlideRules.checkpointSpacing))
         guard cell >= 0 else { return Sample(x: 0, slope: 0, turnRate: 0) }
         guard cell < bends.count else {

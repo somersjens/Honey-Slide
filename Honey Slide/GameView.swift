@@ -266,7 +266,8 @@ struct GameView: View {
 
     private func finishLevelCompletion() {
         guard playsLevelCompletion, model.isGameOver else { return }
-        // The simulation reports completion after the final pot lands/sinks.
+        // The simulation reports completion after the finish ramp launches
+        // the bear completely out of view, after the final pot has settled.
         // Pausing/backgrounding cannot let a wall-clock timer skip its flight.
         showsResult = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {

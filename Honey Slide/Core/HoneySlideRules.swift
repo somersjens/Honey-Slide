@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 
-/// Adapts the saved six-option math boards to a three-barrel checkpoint while
+/// Adapts the saved six-option math boards to race checkpoints while
 /// preserving option identities understood by the existing scoring engine.
 enum HoneySlideRules {
     /// All moving objects use these world units, including answer rows.
@@ -19,12 +19,24 @@ enum HoneySlideRules {
     static let straightHalfLength = 700.0
     static let collectionDuration = 0.65
     static let tumbleDuration = 0.95
-    // Double the world spans with speed, preserving the time spent in a channel.
-    static let dividerLead = 420.0
+    static let jumpLift = 0.48
+    static let rampLead = 430.0
+    static let jumpLandingTail = 180.0
+    static let finishWidth = 0.34
+    static let finishFunnelStart = 80.0
+    static let finishFunnelLength = 500.0
+    static let finishRampLead = 560.0
+    static let finishFlightDuration = 0.6875
+
+    static func cameraZoom(widthScale: Double) -> Double {
+        max(0.68, min(1, 1 - max(0, widthScale - 1) * 0.5))
+    }
+    // Leave room for a late lane change before entering the answer passages.
+    static let dividerLead = 180.0
     static let dividerTail = 120.0
-    static let dividerHalfWidth = 0.025
+    static let dividerHalfWidth = 0.016
     static let dividerHeight = 58.0
-    static let dividerSections = 18
+    static let dividerSections = 10
     // Clip at the camera, after the complete pot and wall have left the view.
     // The former -80 cutoff froze ground projection with props still visible.
     static let nearClipDepth = 12.0
@@ -33,16 +45,16 @@ enum HoneySlideRules {
     static let laneBoundary = laneSpacing / 2
     static let railClearance = 12.0
 
-    // One fixed-width road, enlarged only by perspective. Changing width with
-    // viewing distance made the verges bulge and pinch as corners approached.
+    // The reference road width. Race widths are sampled at fixed world
+    // positions, so a widening section travels with the course geometry.
     static let trackWorldHalfWidth = 800.0
     static let projectionScale = 1.2
     /// Lift the distant course under the question sign while preserving the
     /// rider's waterline and the exact projection used by touch and collisions.
     static let horizonY = 108.0
     static let groundScale = 780 * pow(playerDepth, 0.2) + (155 - horizonY) / playerDepth
-    static func trackHalfWidth(depth: Double) -> Double {
-        trackWorldHalfWidth * max(0, depth) * projectionScale
+    static func trackHalfWidth(depth: Double, widthScale: Double = 1) -> Double {
+        trackWorldHalfWidth * max(0, depth) * projectionScale * widthScale
     }
 
     static func ridingHalfWidth(depth: Double) -> Double {
@@ -64,7 +76,8 @@ enum HoneySlideRules {
     /// Depth zero converges to the horizon, rather than terminating at a cap.
     static func trackPoint(depth: Double, offset: Double, distance: Double,
                            course: HoneySlideCourse = .preview,
-                           originCourse: Double? = nil, originSlope: Double? = nil) -> CGPoint {
+                           originCourse: Double? = nil, originSlope: Double? = nil,
+                           widthProfile: HoneyTrackWidth = .standard, cameraZoom: Double = 1, cameraOffset: Double = 0) -> CGPoint {
         let t = max(0, min(nearClipDepth, depth))
         let world = worldDistance(distance)
         let ahead = focalLength * (1 / max(0.001, t) - 1)
@@ -85,7 +98,8 @@ enum HoneySlideRules {
             let relative = course.sample(at: world + ahead).x - cameraX - cameraSlope * ahead
             center = 800 + relative * t * projectionScale
         }
-        return CGPoint(x: center + offset * trackHalfWidth(depth: t),
+        return CGPoint(x: 800 - cameraOffset + (center - 800) * cameraZoom
+            + offset * trackHalfWidth(depth: t, widthScale: widthProfile.scale(at: world + ahead)) * cameraZoom,
                        y: groundY(depth: t))
     }
 
@@ -114,21 +128,22 @@ enum HoneySlideRules {
     }
 
     static func ridingPoint(depth: Double, lateral: Double, distance: Double,
-                            course: HoneySlideCourse = .preview) -> CGPoint {
-        let center = trackPoint(depth: depth, offset: 0, distance: distance, course: course)
-        let ridingWidth = ridingHalfWidth(depth: max(0, depth))
+                            course: HoneySlideCourse = .preview, cameraZoom: Double = 1, cameraOffset: Double = 0) -> CGPoint {
+        let center = trackPoint(depth: depth, offset: 0, distance: distance, course: course, cameraZoom: cameraZoom, cameraOffset: cameraOffset)
+        let ridingWidth = ridingHalfWidth(depth: max(0, depth)) * cameraZoom
         return CGPoint(x: center.x + lateral * ridingWidth, y: center.y)
     }
 
     /// Invert the same projection used to place barrels. A tap on a far lane
     /// selects that lane, rather than a screen-x position close to the centre.
-    static func steeringTarget(at point: CGPoint, elapsed: Double, course: HoneySlideCourse = .preview) -> Double? {
+    static func steeringTarget(at point: CGPoint, elapsed: Double, course: HoneySlideCourse = .preview,
+                               widthProfile: HoneyTrackWidth = .standard, cameraZoom: Double = 1, cameraOffset: Double = 0) -> Double? {
         guard point.y >= horizonY else { return nil }
         let depth = groundDepth(screenY: point.y)
-        let center = trackPoint(depth: depth, offset: 0, distance: elapsed, course: course)
-        let edge = trackPoint(depth: depth, offset: 1, distance: elapsed, course: course)
+        let center = trackPoint(depth: depth, offset: 0, distance: elapsed, course: course, cameraZoom: cameraZoom, cameraOffset: cameraOffset)
+        let edge = trackPoint(depth: depth, offset: 1, distance: elapsed, course: course, widthProfile: widthProfile, cameraZoom: cameraZoom, cameraOffset: cameraOffset)
         guard abs(point.x - center.x) <= edge.x - center.x else { return nil }
-        let width = ridingPoint(depth: depth, lateral: 1, distance: elapsed, course: course).x - center.x
+        let width = ridingPoint(depth: depth, lateral: 1, distance: elapsed, course: course, cameraZoom: cameraZoom, cameraOffset: cameraOffset).x - center.x
         return (point.x - center.x) / max(1, width)
     }
 
@@ -139,9 +154,9 @@ enum HoneySlideRules {
     }
 
     static func potBounds(depth: Double, lateral: Double, elapsed: Double,
-                          billboardYScale: Double, course: HoneySlideCourse = .preview) -> CGRect {
-        let p = ridingPoint(depth: depth, lateral: lateral, distance: elapsed, course: course)
-        let s = CGFloat(answerScale(depth: depth))
+                          billboardYScale: Double, course: HoneySlideCourse = .preview, sizeFactor: Double = 1, cameraZoom: Double = 1, cameraOffset: Double = 0) -> CGRect {
+        let p = ridingPoint(depth: depth, lateral: lateral, distance: elapsed, course: course, cameraZoom: cameraZoom, cameraOffset: cameraOffset)
+        let s = CGFloat(answerScale(depth: depth) * sizeFactor * cameraZoom)
         let vertical = s * CGFloat(billboardYScale)
         let origin = CGPoint(x: p.x - 79 * s, y: p.y - 144 * vertical)
         return CGRect(origin: origin, size: CGSize(width: 158 * s, height: 166 * vertical))
@@ -149,9 +164,9 @@ enum HoneySlideRules {
 
     /// Fixed endpoints of each wall block; promotion and proximity never
     /// retessellate the wall or move its joints to a different world position.
-    static func dividerSegment(rowPosition: Double, index: Int) -> (far: Double, near: Double) {
-        let step = (dividerLead + dividerTail) / Double(dividerSections)
-        let far = rowPosition + dividerTail - Double(index) * step
+    static func dividerSegment(rowPosition: Double, index: Int, tail: Double = dividerTail) -> (far: Double, near: Double) {
+        let step = (dividerLead + tail) / Double(dividerSections)
+        let far = rowPosition + tail - Double(index) * step
         return (far, far - step)
     }
 

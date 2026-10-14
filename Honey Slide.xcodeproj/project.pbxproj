@@ -23,6 +23,7 @@
 		F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 		F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 		F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F951ED6A307F83B700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -106,6 +107,7 @@
 				F951D748307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */,
 				F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */,
 				F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */,
+				F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -201,6 +203,13 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		F951ED9E307F83B700FF04C4 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -250,6 +259,10 @@
 			productRefGroup = F951CADD307A40F800FF04C4 /* Products */;
 			projectDirPath = "";
 			projectReferences = (
+				{
+					ProductGroup = F951ED9E307F83B700FF04C4 /* Products */;
+					ProjectRef = F951ED6A307F83B700FF04C4 /* Honey Slide.xcodeproj */;
+				},
 				{
 					ProductGroup = F951E593307BAF0900FF04C4 /* Products */;
 					ProjectRef = F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */;

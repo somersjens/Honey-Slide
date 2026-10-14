@@ -50,6 +50,8 @@ public struct PausedSession: Codable, Equatable, Sendable {
     public let answerPaces: [AnswerPace]?
     /// Time already spent on the question that was active when play paused.
     public let currentQuestionElapsedSeconds: TimeInterval?
+    public let correctStreak: Int?
+    public let mistakeStreak: Int?
 
     public init(boardID: String,
                 roundNumber: Int,
@@ -67,7 +69,8 @@ public struct PausedSession: Codable, Equatable, Sendable {
                 lastMissedChallenge: String? = nil,
                 timeRemainingSeconds: Int? = nil,
                 answerPaces: [AnswerPace]? = nil,
-                currentQuestionElapsedSeconds: TimeInterval? = nil) {
+                currentQuestionElapsedSeconds: TimeInterval? = nil,
+                correctStreak: Int? = nil, mistakeStreak: Int? = nil) {
         self.boardID = boardID
         self.roundNumber = roundNumber
         self.cards = cards
@@ -85,6 +88,8 @@ public struct PausedSession: Codable, Equatable, Sendable {
         self.timeRemainingSeconds = timeRemainingSeconds
         self.answerPaces = answerPaces
         self.currentQuestionElapsedSeconds = currentQuestionElapsedSeconds
+        self.correctStreak = correctStreak
+        self.mistakeStreak = mistakeStreak
     }
 
     /// A record is only usable if it describes a session that can still be
@@ -95,6 +100,8 @@ public struct PausedSession: Codable, Equatable, Sendable {
             && roundNumber <= GameConfig.maximumRoundCeiling
             && lifeHalves <= GameConfig.startingLifeHalves
             && cards >= 0
+            && (correctStreak ?? 0) >= 0 && (correctStreak ?? 0) <= correctAnswers
+            && (mistakeStreak ?? 0) >= 0 && (mistakeStreak ?? 0) <= wrongAnswers
             && correctAnswers >= 0
             && wrongAnswers >= 0
             && (heartFishProgress ?? 0) >= 0

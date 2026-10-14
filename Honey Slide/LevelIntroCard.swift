@@ -187,6 +187,17 @@ struct LevelIntroCard: View {
 
                         // Only a paused run adds height below that shared
                         // baseline; otherwise the card ends right after it.
+                        DisclosureGroup(L(key: "honey.race.howTo")) {
+                            Text(L(key: "honey.race.instructions"))
+                                .font(.system(size: 13 * textScale, weight: .medium))
+                                .foregroundStyle(HoneyMenuPalette.ink)
+                                .padding(.top, 6 * scale)
+                        }
+                        .font(.system(size: 14 * textScale, weight: .bold))
+                        .tint(HoneyMenuPalette.ink)
+                        .padding(.top, 14 * scale)
+                        .accessibilityIdentifier("intro-race-help")
+
                         if isContinuation {
                             pausedMessage
                                 .padding(.top, 14 * scale)

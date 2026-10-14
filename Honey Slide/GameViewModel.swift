@@ -27,6 +27,8 @@ final class GameViewModel: ObservableObject {
     @Published private(set) var round: GameRound?
     @Published private(set) var roundNumber = 0
     @Published private(set) var cards = 0
+    @Published private(set) var correctStreak = 0
+    @Published private(set) var mistakeStreak = 0
     @Published private(set) var completedQuestions = 0
     @Published private(set) var livesRemaining = GameConfig.startingLives
     @Published private(set) var selectedOptionID: UUID?
@@ -293,11 +295,12 @@ final class GameViewModel: ObservableObject {
     /// Every collision consumes one question and immediately promotes the
     /// existing next row. Feedback is visual/audio only and never delays play.
     @discardableResult
-    func select(optionID: UUID,
+    func select(optionID: UUID?,
                 usesSpeedBonus: Bool = false,
                 wrongAnswerCostHalves: Int? = nil) -> Bool {
         guard acceptsInput else { return false }
-        let outcome = engine.select(optionID: optionID)
+        let outcome = optionID.map { engine.select(optionID: $0) }
+            ?? engine.missAnswer()
         guard outcome != .ignored else { return false }
         PlaytimeTracker.shared.registerInteraction()
         if case .wrong = outcome {
@@ -438,6 +441,8 @@ final class GameViewModel: ObservableObject {
         set(\.round, engine.round)
         set(\.roundNumber, engine.roundNumber)
         set(\.cards, engine.cards)
+        set(\.correctStreak, engine.correctStreak)
+        set(\.mistakeStreak, engine.mistakeStreak)
         set(\.completedQuestions, engine.completedQuestions)
         set(\.stageNumber, Self.stage(after: engine.completedQuestions, maximum: request.board.maximum))
         set(\.livesRemaining, engine.livesRemaining)

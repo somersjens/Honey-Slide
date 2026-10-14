@@ -102,6 +102,8 @@ public final class MemoryGame {
 
     public private(set) var roundNumber = 0
     public private(set) var cards = 0
+    public private(set) var correctStreak = 0
+    public private(set) var mistakeStreak = 0
     /// Lives in half units. 6 == three lives.
     public private(set) var lifeHalves = GameConfig.startingLifeHalves
     /// The option the player tapped this round, if any.
@@ -225,6 +227,8 @@ public final class MemoryGame {
         result.correctAnswers = session.correctAnswers
         result.wrongAnswers = session.wrongAnswers
         result.cardsEarned = cards
+        correctStreak = session.correctStreak ?? 0
+        mistakeStreak = session.mistakeStreak ?? 0
         // A run that comes back already on its last life is owed the same
         // rescue as one that gets there in front of us.
         if lifeHalves > 0, lifeHalves <= GameConfig.rescueHeartLifeThresholdHalves {
@@ -268,7 +272,8 @@ public final class MemoryGame {
                              lastMissedChallenge: lastMissedChallenge,
                              timeRemainingSeconds: timeRemainingSeconds,
                              answerPaces: answerPaces,
-                             currentQuestionElapsedSeconds: currentQuestionElapsedSeconds)
+                             currentQuestionElapsedSeconds: currentQuestionElapsedSeconds,
+                             correctStreak: correctStreak, mistakeStreak: mistakeStreak)
     }
 
     /// The tap that turns the answer cards face down and brings the question
@@ -316,15 +321,26 @@ public final class MemoryGame {
         if option.isCorrect {
             cards += 1
             result.correctAnswers += 1
+            correctStreak += 1
+            mistakeStreak = 0
             outcome = .correct(cardsEarned: 1, usedBonusFish: false)
         } else {
             result.wrongAnswers += 1
+            correctStreak = 0
+            mistakeStreak += 1
             outcome = .wrong(correctOptionID: round.correctOption?.id ?? optionID,
                              lostHalfLife: false)
         }
         result.cardsEarned = cards
         lastOutcome = outcome
         return outcome
+    }
+
+    /// A gap or an airborne passage consumes the question as a mistake.
+    @discardableResult
+    public func missAnswer() -> AnswerOutcome {
+        guard let wrong = round?.options.first(where: { !$0.isCorrect }) else { return .ignored }
+        return select(optionID: wrong.id)
     }
 
     /// Restores life when the passing heart fish is caught. The return value is

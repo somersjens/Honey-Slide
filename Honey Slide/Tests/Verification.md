@@ -1,4 +1,66 @@
-# Honey Slide verification — 2026-10-11
+# Honey Slide verification — 2026-10-14
+
+The current obstacle racer uses 2–5 full-size answer pots and physical track
+widths of 80%, 100%, 132% and 164% respectively. Width transitions blend over
+950 world units. Four and five answers are wider than the original road; the
+camera pulls back to frame them. Bank projection, rail clearance, tube contact
+and inverse touch selection share the same world profile and camera transform.
+
+All six upcoming rows and their props are prepared ahead of time. Question
+promotion preserves their identities, positions and layouts. Future pots keep
+their original closed shutters; labels open for the current question. New
+objects enter beyond the draw distance. Stationary rows have one solid divider
+between each pair of pots and persistent answered tails. The walls are 36%
+thinner and start only 180 world units before the answer, allowing later lane
+switches. Moving rows have three pots on a four-option-wide road, no dividers,
+and a continuous shared bounce that reverses at the banks.
+
+The HUD retains the original signs and Honey total. The separate race score,
+multiplier, stars, bonus honey pickups and track rocks are removed. Correct
+answers earn one Honey. Warm wood, amber glaze, leaves, shading and contact
+shadows tie the five remaining props into the original forest scene.
+
+Logs are permanent solid obstacles: forward travel stays exactly at the contact
+distance until the rider steers just past the painted bark. Contact follows the
+rendered silhouette and visible front hull, excluding the empty space around
+the bear's shoulders. The clearance is half a pixel. The complete log silhouette
+is clamped inside the banks at its world position. Whirlpools have animated
+spiral flow and slow the rider for exactly two seconds. The funnels are 50%
+larger and rotate faster, fading into the honey surface. Ramps sit 430 world
+units before stationary rows in line with a divider. The distance-based jump
+peaks just before the pots, clears the entire answer row with a 48% viewport
+lift, and lands 180 world units after it, regardless of speed modifiers. A
+grounded shadow and gently following camera keep the flight readable below
+the HUD. Obstacles and modifiers start at question two, with saved question
+numbers ensuring they are also present immediately when a level resumes.
+
+Verified with the Foundation harness: 80 seeded runways, 250 questions across
+six math topics, all five prop types and six answer moments, stable future rows,
+every stationary passage in 2–5 answer rows on phone/tablet, three-pot bouncing
+rows, solid log stops and escape, exact effect timers, full answer-row jumps,
+short landings and HUD clearance, early/resumed props, Honey-only rewards, older saves, long frames,
+width transitions, touch inversion and projection. The Debug iOS Simulator
+build passes. Production-renderer previews cover phone/tablet layouts for
+every answer count, moving rows, future pots, jump apex/landing, whirlpool
+contact, blocked logs and question-two/resumed layouts, plus an artwork sheet.
+These are offscreen checks, not device FPS.
+
+The finish sequence also passes for every final answer count on phone/tablet.
+It is prepared ahead of time, narrows smoothly into one passage, keeps a straight
+terminal road, centers the rider, launches within 1.05 seconds of the final
+answer, and sends it completely offscreen during the 0.6875-second flight before
+reporting completion. The flight is 20% slower than the previous version.
+Scoring remains unchanged during the exit. An airborne final answer lands
+before the terminal ramp, then launches with a native honey burst and jets.
+Pause freezes the sequence, long frames complete it once, and a fresh run has
+no old finish state. Native renderer previews cover approach, funnel, launch
+and complete exit; the finite honey surface and banks end at the springboard,
+whose full deck follows exactly the same projected edges as the banks.
+
+The notes below document earlier versions and are not the current scoring or
+answer-layout specification.
+
+# Historical verification — 2026-10-11
 
 ## Current gameplay
 

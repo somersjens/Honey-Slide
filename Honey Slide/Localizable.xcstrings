@@ -21090,6 +21090,13 @@
         }
       }
     },
+    "honey.finish" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Finish!" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Finish!" } }
+      }
+    },
     "honey.pause" : {
       "localizations" : {
         "en" : {
@@ -21119,6 +21126,234 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vraag %1$lld / %2$lld"
+          }
+        }
+      }
+    },
+    "honey.race.boost" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boost · 3 seconds"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Boost · 3 seconden"
+          }
+        }
+      }
+    },
+    "honey.race.whirlpool" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whirlpool · slowed for 2 seconds"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Draaikolk · 2 seconden vertraagd"
+          }
+        }
+      }
+    },
+    "honey.race.ramp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jump · watch your landing!"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprong · let op je landing!"
+          }
+        }
+      }
+    },
+    "honey.race.collision" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collision · steer away!"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Botsing · stuur weg!"
+          }
+        }
+      }
+    },
+    "honey.race.hive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avoid the hive"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ontwijk de bijenkorf"
+          }
+        }
+      }
+    },
+    "honey.race.log" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avoid the log"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ontwijk de boomstam"
+          }
+        }
+      }
+    },
+    "honey.race.moment.normal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose your route"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kies je route"
+          }
+        }
+      }
+    },
+    "honey.race.moment.narrow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Narrow passage · aim carefully"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smalle doorgang · stuur precies"
+          }
+        }
+      }
+    },
+    "honey.race.moment.moving" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moving pots · keep steering"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bewegende vaten · blijf sturen"
+          }
+        }
+      }
+    },
+    "honey.race.moment.swapping" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pots swap places · follow your answer"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vaten wisselen · volg je antwoord"
+          }
+        }
+      }
+    },
+    "honey.race.moment.quick" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick decision · answers appear late"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Snelle beslissing · antwoorden komen later"
+          }
+        }
+      }
+    },
+    "honey.race.moment.risk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risk · a boost before the answer"
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risico · een boost vóór het antwoord"
+          }
+        }
+      }
+    },
+    "honey.race.howTo" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "How to race" } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Zo werkt de race" } }
+      }
+    },
+    "honey.race.instructions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Steer into the correct pot. Dividers keep you in your chosen passage. Avoid hives; logs block you until you steer around them. Lightning speeds you up for 3 seconds. Whirlpools slow you down for 2 seconds. Ramps launch you high, sometimes over an answer. The track widens for more answers. Each correct answer earns one Honey."
+          }
+        },
+        "nl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stuur naar het juiste vat. Tussenstukken houden je in je gekozen doorgang. Ontwijk bijenkorven; boomstammen blokkeren je totdat je eromheen stuurt. Bliksem versnelt je 3 seconden. Draaikolken remmen je 2 seconden. Springplanken laten je hoog springen, soms over een antwoord. De baan wordt breder bij meer antwoorden. Elk goed antwoord levert één Honey op."
           }
         }
       }
