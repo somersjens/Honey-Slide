@@ -41,33 +41,55 @@ struct HoneyCheckpoint: Identifiable {
     var dividerBoundaries: [Double] {
         isMoving ? [] : zip(lanePositions, lanePositions.dropFirst()).map { ($0 + $1) / 2 }
     }
+    /// How far an end pot travels past its neighbor before it turns around.
     var motionLimit: Double {
         let bank = HoneySlideRules.trackHalfWidth(depth: HoneySlideRules.playerDepth,
             widthScale: HoneyTrackWidth.scale(answerCount: trackAnswerCount))
         let pot = 79 * HoneySlideRules.answerScale(depth: HoneySlideRules.playerDepth) + 4
-        let outerLane = lanePositions.map(abs).max() ?? 0
-        return max(0, (bank - pot) / HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) - outerLane)
+        let limit = max(0, (bank - pot) / HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth))
+        return max(0, limit - HoneySlideRules.answerTouchSpacing)
     }
     func slot(for optionIndex: Int) -> Int {
         moment == .swapping && optionIndex < 2 ? 1 - optionIndex : optionIndex
     }
 
+    /// Three pots swing like a Newton's cradle. Future rows are already in
+    /// motion; they do not wait until the previous answer is collected.
+    /// At each impact the neighbors meet, and their centers never cross.
     func lateralPosition(at index: Int, elapsed: Double) -> Double {
         guard lanePositions.indices.contains(index) else { return 0 }
-        let age = max(0, elapsed - (activatedAt ?? elapsed))
-        var position = lanePositions[index]
-        if moment == .swapping, lanePositions.count >= 2, index < 2 {
-            let t = max(0, min(1, (age - 0.8) / 2.2))
-            let smooth = t * t * (3 - 2 * t)
-            position += (lanePositions[1 - index] - position) * smooth
-        }
-        if activatedAt != nil && isMoving && motionLimit > 0 {
-            let phase = (age * 0.42 / motionLimit + 1).truncatingRemainder(dividingBy: 4)
-            let bounce = 1 - abs(phase - 2)
-            position += (motionPhase < .pi ? 1 : -1) * motionLimit * bounce
-        }
-        return position
+        guard isMoving else { return lanePositions[index] }
+        // Each pot keeps its cradle slot. Crossing slots made the left pot
+        // become the middle one and overlap its neighbour.
+        let slots = cradleSlots(at: elapsed)
+        let slot = Double(index)
+        let lower = max(0, min(slots.count - 1, Int(floor(slot))))
+        let upper = min(slots.count - 1, lower + 1)
+        let fraction = min(1, max(0, slot - Double(lower)))
+        return slots[lower] * (1 - fraction) + slots[upper] * fraction
     }
+
+    private func cradleSlots(at elapsed: Double) -> [Double] {
+        let spacing = HoneySlideRules.answerTouchSpacing
+        let amplitude = motionLimit
+        let cycle = elapsed * 0.3125 + motionPhase / (.pi * 2)
+        let phase = cycle - floor(cycle)
+        let beat = min(3, Int(phase * 4))
+        let local = phase * 4 - Double(beat)
+        let incoming = cos(local * .pi / 2)
+        let outgoing = sin(local * .pi / 2)
+        var left = -spacing
+        var right = spacing
+        switch beat {
+        case 0: left = -spacing - amplitude * incoming
+        case 1: right = spacing + amplitude * outgoing
+        case 2: right = spacing + amplitude * incoming
+        default: left = -spacing - amplitude * outgoing
+        }
+        return [left, 0, right]
+    }
+    /// The ramp is the scoring choice: none of the pots is correct.
+    var correctIsAbsent = false
     var wasCorrect = false
     var revealedAt: Double?
     var impactAt: Double?
@@ -100,7 +122,9 @@ struct HoneySlideSimulation {
         finish?.launchedAt.map { elapsed >= $0 + HoneySlideRules.finishFlightDuration } ?? false
     }
     var riderLift: Double {
-        jumpHeight * HoneySlideRules.jumpLift + finishFlightProgress * (2.5 + finishFlightProgress)
+        let p = finishFlightProgress
+        let eased = p * p * (3 - 2 * p)
+        return jumpHeight * HoneySlideRules.jumpLift + eased * (2.5 + eased)
     }
     private(set) var blockedLogID: Int?
     private(set) var boostUntil = 0.0
@@ -108,6 +132,7 @@ struct HoneySlideSimulation {
     private(set) var collisionUntil = 0.0
     private(set) var tempoUntil = 0.0
     private(set) var jumpStartedAt: Double?
+    private var finishLaunchPace = 1.0
     private(set) var jump: HoneyRaceJump?
     private(set) var lastItemKind: HoneyTrackItemKind?
     private(set) var lastItemAt = -10.0
@@ -120,25 +145,45 @@ struct HoneySlideSimulation {
     var isBoosted: Bool { elapsed < boostUntil }
     var isSlowed: Bool { elapsed < slowUntil || elapsed < collisionUntil }
     var speedFactor: Double {
-        if hasFinishStarted { return hasFinishLaunched ? 0 : 1.25 }
+        if hasFinishLaunched { return 0 }
         return (hasRaceStarted ? difficulty.speedFactor : 1) * (elapsed < tempoUntil ? 1.16 : 1)
             * (isBoosted ? 1.6 : 1) * (elapsed < slowUntil ? 0.55 : 1)
             * (elapsed < collisionUntil ? 0.65 : 1)
     }
-    var cameraZoom: Double {
+    private var targetCameraZoom: Double {
         HoneySlideRules.cameraZoom(widthScale: widthProfile.scale(at: distance + HoneySlideRules.playerAhead))
-            * (1 - jumpHeight * 0.18)
     }
-    var cameraOffset: Double {
+    /// Eased toward the road width so a widening or narrowing stretch does not
+    /// rescale every sprite in one step.
+    private var smoothedZoom: Double?
+    var cameraZoom: Double { smoothedZoom ?? targetCameraZoom }
+    private var rawCameraOffset: Double {
         let displacement = lateral * HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) * cameraZoom
         let visible = 800 - HoneyTubeGeometry.spriteWidth(in: viewport) / viewport.width * 800 * cameraZoom - 12
         return (displacement < 0 ? -1.0 : 1.0) * max(0, abs(displacement) - visible)
     }
+    private var smoothedOffset = 0.0
+    var cameraOffset: Double { smoothedOffset }
     var speed: Double { blockedLogID == nil ? HoneySlideRules.forwardSpeed * speedFactor : 0 }
     var jumpHeight: Double {
         jump?.height(at: distance + HoneySlideRules.playerAhead) ?? 0
     }
+    /// Nose up on the way up and nose down on the way down, following the sine.
+    var jumpPitch: Double {
+        guard let jump else { return 0 }
+        let span = jump.landingPosition - jump.startPosition
+        guard span > 0 else { return 0 }
+        let t = (distance + HoneySlideRules.playerAhead - jump.startPosition) / span
+        guard t > 0, t < 1 else { return 0 }
+        return -cos(t * .pi) * 18
+    }
     var isAirborne: Bool { jumpHeight > 0.16 || hasFinishLaunched }
+    /// From the moment the plank is taken until the landing, the rider keeps
+    /// the line they were on. Divider walls do not steer that flight into a lane.
+    var isCoastingJump: Bool {
+        guard let jump, jumpStartedAt != nil else { return false }
+        return distance + HoneySlideRules.playerAhead < jump.landingPosition
+    }
     /// Follow the high jump just enough to keep the bear below the wooden HUD.
     /// The same translation moves the ground, props and grounded shadow, so
     /// the physical lift relative to the answer pots remains unchanged.
@@ -246,14 +291,18 @@ struct HoneySlideSimulation {
             checkpoints[index].previewTexts = round.options.map(\.text)
             if checkpoints[index].configuredAt == nil {
                 let plan = HoneyRaceDifficulty(completed: max(completed + i, round.number - 1), streak: streak, mistakes: mistakes)
-                configureCheckpoint(at: index, round: round, plan: plan)
+                configureCheckpoint(at: index, round: round, plan: plan, isFinal: round.number == totalQuestions)
             }
         }
         if finish == nil, let totalQuestions,
            let last = rounds.firstIndex(where: { $0.number == totalQuestions }) {
             let row = checkpoints[upcoming[last]]
             widthProfile.appendFinish(after: row.worldPosition)
-            course.straightenFinish(after: row.worldPosition)
+            // Straighten from a full draw distance before the last row, but
+            // never under the rider. The ramp and the last answers then sit
+            // on the visible centerline instead of popping in around a bend.
+            let approach = row.worldPosition - HoneySlideRules.drawDistance
+            course.straightenFinish(after: max(approach, distance + HoneySlideRules.playerAhead))
             let rampID = nextItemID
             addItem(.ramp, row: row, lead: -HoneySlideRules.finishRampLead, lane: 0)
             finish = HoneyFinish(checkpointID: row.id, rowPosition: row.worldPosition,
@@ -265,7 +314,7 @@ struct HoneySlideSimulation {
         revealActiveCheckpoint()
     }
 
-    private mutating func configureCheckpoint(at index: Int, round: GameRound, plan: HoneyRaceDifficulty) {
+    private mutating func configureCheckpoint(at index: Int, round: GameRound, plan: HoneyRaceDifficulty, isFinal: Bool) {
         let level = plan.level
         let moments: [HoneyAnswerMoment] = level == 0 ? [.normal]
             : level == 1 ? [.normal, .moving, .risk]
@@ -279,37 +328,60 @@ struct HoneySlideSimulation {
         let options = ([correct] + wrong.prefix(count - 1)).shuffled(using: &random)
         let spacing = moment == .narrow ? 0.64 : HoneySlideRules.laneSpacing
         let span = Double(count - 1) * spacing / 2
-        widthProfile.append(answerCount: moving ? 4 : options.count, rowPosition: checkpoints[index].worldPosition)
-        checkpoints[index].options = options
-        checkpoints[index].lanePositions = options.indices.map {
-            -span + 2 * span * Double($0) / Double(options.count - 1)
+        widthProfile.append(answerCount: moving ? 4 : count, rowPosition: checkpoints[index].worldPosition)
+        checkpoints[index].lanePositions = (0..<count).map {
+            -span + (count == 1 ? 0 : 2 * span * Double($0) / Double(count - 1))
         }
         checkpoints[index].moment = moment
         checkpoints[index].motionPhase = Double.random(in: 0...(.pi * 2), using: &random)
         checkpoints[index].configuredAt = elapsed
-        checkpoints[index].revealLead = moment == .quick ? 1350 : HoneySlideRules.drawDistance
+        // Open the numbers for the whole approach, including when this row
+        // has more pots than the one just answered.
+        checkpoints[index].revealLead = HoneySlideRules.checkpointSpacing + 500
+        checkpoints[index].options = options
         let row = checkpoints[index]
-        let answerLane = row.lanePositions[options.firstIndex(where: \.isCorrect)!]
+        let answerLane = options.firstIndex(where: \.isCorrect).map { row.lanePositions[$0] } ?? 0
         func randomLane(_ generator: inout SeededGenerator) -> Double {
             [-span * 0.9, 0.0, span * 0.9].randomElement(using: &generator)!
         }
         if plan.completed >= 1 {
-            let obstacle: HoneyTrackItemKind = [.hive, .log].randomElement(using: &random)!
-            addItem(obstacle, row: row, lead: 1850, lane: randomLane(&random))
-            if moment == .risk {
-                addItem(.boost, row: row, lead: HoneySlideRules.checkpointSpacing / 2, lane: answerLane)
+            // The final approach shows the end ramp, not a whirlpool standing in for it.
+            let modifier: HoneyTrackItemKind
+            if moment == .risk || (moving && isFinal) {
+                modifier = .boost
+            } else if moving {
+                modifier = [.boost, .whirlpool].randomElement(using: &random)!
+            } else if isFinal {
+                modifier = [.boost, .ramp].randomElement(using: &random)!
             } else {
-                let modifier: HoneyTrackItemKind = (moving ? [.boost, .whirlpool] : [.boost, .whirlpool, .ramp]).randomElement(using: &random)!
-                let lead = modifier == .ramp ? HoneySlideRules.rampLead : modifier == .boost ? HoneySlideRules.checkpointSpacing / 2 : 950
-                let rampLane = row.dividerBoundaries.randomElement(using: &random) ?? 0
-                addItem(modifier, row: row, lead: lead,
-                        lane: modifier == .ramp ? rampLane : randomLane(&random))
+                modifier = [.boost, .whirlpool, .ramp].randomElement(using: &random)!
             }
+            if modifier == .ramp, wrong.count >= count, Int.random(in: 0...count, using: &random) == 0 {
+                // One extra choice, the ramp itself: each pot and "none of them"
+                // are equally likely. Jumping the empty set still scores.
+                checkpoints[index].options = Array(wrong.prefix(count))
+                checkpoints[index].correctIsAbsent = true
+            }
+            let lead = modifier == .ramp ? HoneySlideRules.rampLead : modifier == .boost ? HoneySlideRules.checkpointSpacing / 2 : 950
+            let rampLane = checkpoints[index].dividerBoundaries.randomElement(using: &random) ?? 0
+            addItem(modifier, row: row, lead: lead,
+                    lane: modifier == .ramp ? rampLane : (modifier == .boost && moment == .risk ? answerLane : randomLane(&random)))
+            addDriftingLogs(for: row, rampLane: modifier == .ramp ? rampLane : nil)
         }
-        if level >= 2 && plan.completed.isMultiple(of: 3) {
-            // A tall hive briefly hides a pot on the straight approach. It is
-            // cleared before the row, leaving time to steer around it.
-            addItem(.hive, row: row, lead: 1180, lane: answerLane)
+    }
+
+    private mutating func addDriftingLogs(for row: HoneyCheckpoint, rampLane: Double?) {
+        // One, two or three trunks, spread so they never travel as a pair.
+        let count = Int.random(in: 1...3, using: &random)
+        let leads = count == 1 ? [1900.0] : count == 2 ? [1450.0, 2500] : [1400.0, 2050, 2700]
+        let lanes = [-0.38, 0.3, -0.12]
+        for index in 0..<count {
+            let lead = leads[index]
+            var placed = lanes[index % lanes.count]
+            if let rampLane, abs(placed - rampLane) < 0.7 {
+                placed = rampLane >= 0 ? -0.55 : 0.55
+            }
+            addItem(.log, row: row, lead: lead, lane: placed)
         }
     }
 
@@ -372,7 +444,15 @@ struct HoneySlideSimulation {
         while remaining > 1e-9 {
             let dt = min(1.0 / 120, remaining)
             if hasFinishLaunched {
-                elapsed = min(elapsed + dt, finish!.launchedAt! + HoneySlideRules.finishFlightDuration)
+                let end = finish!.launchedAt! + HoneySlideRules.finishFlightDuration
+                let step = min(dt, max(0, end - elapsed))
+                if step > 0 {
+                    // Keep a forward component along the ramp instead of stopping
+                    // and going straight up.
+                    let glide = max(0, 1 - finishFlightProgress * 0.55)
+                    distance += HoneySlideRules.forwardSpeed * finishLaunchPace * glide * step
+                }
+                elapsed = min(elapsed + dt, end)
                 remaining -= dt
                 if isFinishComplete { break }
                 continue
@@ -381,12 +461,16 @@ struct HoneySlideSimulation {
             let oldCourse = course.sample(at: oldPosition), oldLateral = lateral
             elapsed += dt
             holdElapsed += dt
+            startVisibleLogDrift()
             if heldDirection != 0 && holdElapsed > 0.24 { targetLateral = steeringTarget + heldDirection * dt * 1.25 }
             let limits = dividerLimits()
-            if hasSteeringTarget {
+            if isCoastingJump {
+                // Hold the line left on the plank. Steering resumes after landing.
+                steeringVelocity = 0
+            } else if hasSteeringTarget {
                 let target = max(limits.lower, min(limits.upper, steeringTarget))
-                let gain = hasFinishStarted ? 240.0 : 95
-                let damping = hasFinishStarted ? 30.0 : 18
+                let gain = 95.0
+                let damping = 18.0
                 steeringVelocity += ((target - lateral) * gain - steeringVelocity * damping) * dt
                 lateral += steeringVelocity * dt
                 if !touchSteering && heldDirection == 0,
@@ -415,20 +499,43 @@ struct HoneySlideSimulation {
             contactItems(from: oldPosition, to: position)
             revealActiveCheckpoint()
             latchCheckpointCrossing(from: oldPosition, to: position)
-            if hasFinishStarted, let ramp = finish?.rampPosition, position >= ramp - 40 {
+            if hasFinishStarted, let ramp = finish?.rampPosition, position >= ramp - 40, finish?.launchedAt == nil {
+                finishLaunchPace = max(0.9, speedFactor)
                 finish?.launchedAt = elapsed
-                lateral = 0; tubeHeading = 0; steeringVelocity = 0
-                blockedLogID = nil
+                steeringVelocity = 0
+                clearBlockedLog()
             }
             lateralVelocity = (lateral - oldLateral) / dt
+            easeCamera(dt)
             remaining -= dt
         }
         feedbackRemaining = max(0, feedbackRemaining - seconds)
         impacts.removeAll { $0.age(at: elapsed) > 2.0 }
         let cameraDistance = distance
-        items.removeAll { $0.worldPosition - cameraDistance < -250 }
+        items.removeAll { $0.posed(at: elapsed).worldPosition - cameraDistance < -250 }
         checkpoints.removeAll {
             $0.selectedIndex != nil && $0.worldPosition + HoneySlideRules.dividerTail - cameraDistance <= HoneySlideRules.nearClipAhead
+        }
+    }
+
+    private mutating func easeCamera(_ dt: Double) {
+        let zoomTarget = targetCameraZoom
+        let blend = 1 - exp(-5 * dt)
+        if smoothedZoom == nil {
+            smoothedZoom = zoomTarget
+            smoothedOffset = rawCameraOffset
+            return
+        }
+        smoothedZoom! += (zoomTarget - smoothedZoom!) * blend
+        smoothedOffset += (rawCameraOffset - smoothedOffset) * blend
+    }
+
+    private mutating func startVisibleLogDrift() {
+        let view = distance + HoneySlideRules.playerAhead
+        for index in items.indices where items[index].kind == .log && items[index].driftStartedAt == nil {
+            if items[index].worldPosition - view < 2800 {
+                items[index].driftStartedAt = elapsed
+            }
         }
     }
 
@@ -437,47 +544,83 @@ struct HoneySlideSimulation {
             course: course, cameraZoom: cameraZoom, viewport: viewport)
     }
 
-    private mutating func permittedDistance(to proposed: Double) -> Double {
-        if clearsLogs { blockedLogID = nil; return proposed }
-        if let id = blockedLogID, let item = items.first(where: { $0.id == id }) {
-            // Release at the painted edge, using the same contact as approach.
-            // A fixed world-space radius left a large invisible margin beside
-            // the smaller perspective-scaled log.
-            if logInterval(item, distance: proposed)?.contains(lateral) == true { return distance }
-            blockedLogID = nil
+    private func logCoreHalf(_ item: HoneyTrackItem) -> Double {
+        let depth = HoneySlideRules.depth(ahead: item.worldPosition - distance)
+        return HoneyLogContact.coreHalf(depth: depth, cameraZoom: cameraZoom, viewport: viewport)
+    }
+
+    /// The middle of a trunk stops the rider. The ends overlap as a light shove
+    /// and do not hold forward travel.
+    private func logTouch(_ item: HoneyTrackItem, distance: Double) -> (solid: Bool, bump: Bool) {
+        if let row = checkpoints.first(where: { $0.id == item.checkpointID }),
+           item.sinkProgress(rowPosition: row.worldPosition) >= 0.72 {
+            return (false, false)
         }
+        guard let full = logInterval(item, distance: distance), full.contains(lateral) else { return (false, false) }
+        let solid = abs(lateral - item.lateral) <= logCoreHalf(item)
+        return (solid, !solid)
+    }
+
+    private mutating func permittedDistance(to proposed: Double) -> Double {
+        if clearsLogs { clearBlockedLog(); return proposed }
         var result = proposed
+        var blockingID: Int?
         for i in items.indices where items[i].kind == .log {
-            let item = items[i]
-            guard abs(item.worldPosition - distance - HoneySlideRules.playerAhead) < 850,
-                  let contact = logInterval(item, distance: result), contact.contains(lateral) else { continue }
+            let posed = items[i].posed(at: elapsed)
+            guard abs(posed.worldPosition - distance - HoneySlideRules.playerAhead) < 850 else { continue }
+            let touch = logTouch(posed, distance: result)
+            if touch.bump {
+                if items[i].contactedAt == nil {
+                    items[i].contactedAt = elapsed
+                    let away = lateral >= posed.lateral ? 1.0 : -1.0
+                    knockbackVelocity = away * 0.85
+                }
+                continue
+            }
+            guard touch.solid else { continue }
             var lower = distance, upper = result
             for _ in 0..<12 {
                 let middle = (lower + upper) / 2
-                if logInterval(item, distance: middle)?.contains(lateral) == true { upper = middle }
+                if logTouch(posed, distance: middle).solid { upper = middle }
                 else { lower = middle }
             }
             result = lower
-            blockedLogID = item.id
+            blockingID = items[i].id
             if items[i].contactedAt == nil { items[i].contactedAt = elapsed }
         }
+        if let blockingID {
+            pinBlockedLog(blockingID)
+        } else if blockedLogID != nil {
+            clearBlockedLog()
+        }
         return result
+    }
+
+    private mutating func pinBlockedLog(_ id: Int) {
+        blockedLogID = id
+    }
+
+    private mutating func clearBlockedLog() {
+        blockedLogID = nil
     }
 
     private mutating func constrainToLogSides(previousLateral: Double) {
         guard !clearsLogs, blockedLogID == nil else { return }
         for item in items where item.kind == .log {
-            guard abs(item.worldPosition - distance - HoneySlideRules.playerAhead) < 850,
-                  let range = logInterval(item, distance: distance), range.contains(lateral) else { continue }
-            if previousLateral <= range.lowerBound { lateral = range.lowerBound - 0.001 }
-            else if previousLateral >= range.upperBound { lateral = range.upperBound + 0.001 }
+            let posed = item.posed(at: elapsed)
+            guard abs(posed.worldPosition - distance - HoneySlideRules.playerAhead) < 850 else { continue }
+            let core = logCoreHalf(posed)
+            let band = (posed.lateral - core)...(posed.lateral + core)
+            guard logTouch(posed, distance: distance).solid, band.contains(lateral) else { continue }
+            if previousLateral <= band.lowerBound { lateral = band.lowerBound - 0.001 }
+            else if previousLateral >= band.upperBound { lateral = band.upperBound + 0.001 }
             steeringVelocity = 0
         }
     }
 
     private mutating func dividerLimits() -> (lower: Double, upper: Double) {
         var lower = -railLimit, upper = railLimit
-        guard !isAirborne else { return (lower, upper) }
+        guard !isAirborne, !isCoastingJump else { return (lower, upper) }
         let footprint = tubeFootprint
         for i in checkpoints.indices {
             let row = checkpoints[i]
@@ -534,10 +677,14 @@ struct HoneySlideSimulation {
             case .boost: boostUntil = elapsed + 3
             case .whirlpool: slowUntil = elapsed + 2
             case .ramp:
-                if let row = checkpoints.first(where: { $0.id == item.checkpointID }) {
+                if let rowIndex = checkpoints.firstIndex(where: { $0.id == item.checkpointID }) {
+                    let row = checkpoints[rowIndex]
+                    checkpoints[rowIndex].guidedLane = nil
+                    let start = row.worldPosition - HoneySlideRules.launchLipLead
+                    let landing = row.worldPosition + HoneySlideRules.jumpLandingTail
                     jumpStartedAt = elapsed
-                    jump = HoneyRaceJump(startPosition: position, peakPosition: row.worldPosition - 20,
-                        landingPosition: row.worldPosition + HoneySlideRules.jumpLandingTail)
+                    jump = HoneyRaceJump(startPosition: start, peakPosition: (start + landing) / 2,
+                        landingPosition: landing)
                 }
             case .hive:
                 collisionUntil = elapsed + 1.1
@@ -595,8 +742,11 @@ struct HoneySlideSimulation {
         if checkpointID == finish?.checkpointID, !hasFinishStarted {
             finish?.startedAt = elapsed
             heldDirection = 0; holdElapsed = 0
-            steeringTarget = 0; hasSteeringTarget = true; touchSteering = true
-            knockbackVelocity = 0; blockedLogID = nil
+            // Keep the speed and the lane. The narrowing bank carries a side
+            // answer inward; nothing yanks the rider to the centre.
+            steeringTarget = 0; hasSteeringTarget = false; steeringVelocity = 0
+            touchSteering = false
+            knockbackVelocity = 0; clearBlockedLog()
         }
     }
 }

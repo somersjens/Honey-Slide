@@ -19,8 +19,13 @@ enum HoneySlideRules {
     static let straightHalfLength = 700.0
     static let collectionDuration = 0.65
     static let tumbleDuration = 0.95
-    static let jumpLift = 0.48
+    static let jumpLift = 0.56
     static let rampLead = 430.0
+    /// The launch plank runs along a divider and meets the answer stones.
+    /// The flight leaves the lip and peaks 20 units before the row, so one
+    /// sine from lip to landing is a single smooth arc.
+    static let launchDeckLead = 520.0
+    static let launchLipLead = 220.0
     static let jumpLandingTail = 180.0
     static let finishWidth = 0.34
     static let finishFunnelStart = 80.0
@@ -43,6 +48,12 @@ enum HoneySlideRules {
     static let nearClipAhead = focalLength * (1 / nearClipDepth - 1)
     static let laneSpacing = 0.66
     static let laneBoundary = laneSpacing / 2
+    /// Center distance at which neighboring pot bellies meet and do not overlap.
+    static var answerTouchSpacing: Double {
+        let depth = playerDepth
+        let paintedWidth = 162 * answerScale(depth: depth)
+        return paintedWidth / ridingHalfWidth(depth: depth)
+    }
     static let railClearance = 12.0
 
     // The reference road width. Race widths are sampled at fixed world

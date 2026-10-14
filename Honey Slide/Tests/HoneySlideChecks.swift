@@ -11,6 +11,7 @@ import CoreGraphics
         checkTrackEffects()
         checkRampClearsAnswers()
         checkRaceCameraPassage()
+        checkFinishApproachIsVisible()
         checkFinishSequence()
         checkFixedQuestionSessions()
         checkSteering()
@@ -563,10 +564,28 @@ import CoreGraphics
     }
 
     private static func avoidLogs(_ ride: inout HoneySlideSimulation, target: Double) {
-        if let log = ride.items.filter({ $0.kind == .log && $0.worldPosition - ride.distance - HoneySlideRules.playerAhead > -220 && $0.worldPosition - ride.distance - HoneySlideRules.playerAhead < 850 })
-            .min(by: { $0.worldPosition < $1.worldPosition }), abs(ride.lateral - log.lateral) < 0.65 || ride.blockedLogID != nil {
-            ride.steer(to: log.lateral >= 0 ? -ride.railLimit : ride.railLimit)
-        } else { ride.steer(to: target) }
+        let ahead = ride.distance + HoneySlideRules.playerAhead
+        func openSide(of lateral: Double) -> Double {
+            let rightRoom = ride.railLimit - lateral
+            return rightRoom >= ride.railLimit + lateral ? ride.railLimit : -ride.railLimit
+        }
+        if let blocked = ride.blockedLogID, let log = ride.items.first(where: { $0.id == blocked })?.posed(at: ride.elapsed) {
+            ride.steer(to: openSide(of: log.lateral))
+            return
+        }
+        let upcoming = ride.items.compactMap { item -> (position: Double, lateral: Double)? in
+            guard item.kind == .log else { return nil }
+            let posed = item.posed(at: ride.elapsed)
+            let gap = posed.worldPosition - ahead
+            guard gap > -30, gap < 420 else { return nil }
+            return (posed.worldPosition, posed.lateral)
+        }
+        if let log = upcoming.min(by: { $0.position < $1.position }),
+           abs(target - log.lateral) < 0.7 || abs(ride.lateral - log.lateral) < 0.7 {
+            ride.steer(to: openSide(of: log.lateral))
+            return
+        }
+        ride.steer(to: target)
     }
 
     private static func checkObstacleRacer() {
@@ -577,7 +596,12 @@ import CoreGraphics
             ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true, completed: seed < 20 ? 0 : 20, streak: seed < 20 ? 0 : 8)
             assert(ride.checkpoints.count == GameConfig.preparedRoundRunway)
             for row in ride.checkpoints {
-                assert((2...5).contains(row.options.count) && row.options.filter(\.isCorrect).count == 1)
+                let correctCount = row.options.filter(\.isCorrect).count
+                assert((2...5).contains(row.options.count))
+                assert(correctCount == (row.correctIsAbsent ? 0 : 1))
+                if row.correctIsAbsent {
+                    assert(ride.items.contains { $0.checkpointID == row.id && $0.kind == .ramp })
+                }
                 assert(Set(row.options.map { AnswerValue($0.text) }).count == row.options.count)
                 assert(row.dividerBoundaries.count == (row.isMoving ? 0 : row.options.count - 1))
                 counts.insert(row.options.count); moments.insert(row.moment)
@@ -594,7 +618,7 @@ import CoreGraphics
             for item in items { assert(ride.items.first { $0.id == item.id }!.worldPosition == item.worldPosition) }
         }
         assert(counts == Set(2...5) && moments == Set(HoneyAnswerMoment.allCases))
-        assert(kinds == Set(HoneyTrackItemKind.allCases) && kinds.count == 5)
+        assert(kinds == Set([HoneyTrackItemKind.boost, .whirlpool, .ramp, .log]))
         // Promotion preserves all visible pots, walls and props; replenishment
         // happens beyond draw distance, where objects can enter at the horizon.
         var ride = HoneySlideSimulation(courseSeed: 3)
@@ -615,7 +639,7 @@ import CoreGraphics
         for old in oldItems { assert(ride.items.first { $0.id == old.id }?.worldPosition == old.worldPosition) }
         let previousIDs = Set(oldItems.map(\.id))
         assert(ride.items.filter { !previousIDs.contains($0.id) }.allSatisfy { $0.worldPosition - ride.distance > HoneySlideRules.drawDistance })
-        print("Runway: 80 seeds, all answer moments/counts, persistent future pots and five prop types")
+        print("Runway: 80 seeds, all answer moments/counts, persistent future pots, logs and no hives")
     }
 
     private static func checkMovingTrainsAndEarlyItems() {
@@ -627,39 +651,55 @@ import CoreGraphics
             for row in ride.checkpoints where row.isMoving {
                 assert(row.options.count == 3 && row.trackAnswerCount == 4 && row.dividerBoundaries.isEmpty)
                 movingKinds.insert(row.moment)
-                guard row.activatedAt != nil else {
-                    assert(row.options.indices.allSatisfy { row.lateralPosition(at: $0, elapsed: 100) == row.lanePositions[$0] })
-                    continue
-                }
                 let width = HoneySlideRules.trackHalfWidth(depth: HoneySlideRules.playerDepth,
                     widthScale: HoneyTrackWidth.scale(answerCount: 4))
-                var furthest = 0.0, reversals = 0, previousDelta = 0.0, previousMiddle = 0.0
-                for time in stride(from: 0.0, through: 12, by: 0.02) {
-                    let positions = row.options.indices.map { row.lateralPosition(at: $0, elapsed: time) }.sorted()
-                    let middle = positions.reduce(0, +) / 3
-                    furthest = max(furthest, abs(middle))
-                    let delta = middle - previousMiddle
-                    if abs(delta) > 1e-6 && delta * previousDelta < 0 { reversals += 1 }
-                    if abs(delta) > 1e-6 { previousDelta = delta }
-                    previousMiddle = middle
+                let touch = HoneySlideRules.answerTouchSpacing
+                var furthest = 0.0, closest = Double.greatestFiniteMagnitude
+                var reversals = 0, previousDelta = 0.0, previousLeft = 0.0
+                var movedBeforeActivation = row.activatedAt != nil
+                let origin = row.options.indices.map { row.lateralPosition(at: $0, elapsed: 0) }
+                for time in stride(from: 0.0, through: 12, by: 0.01) {
+                    let now = row.options.indices.map { row.lateralPosition(at: $0, elapsed: time) }
+                    let positions = now.sorted()
+                    if row.activatedAt == nil, zip(origin, now).contains(where: { abs($0 - $1) > 0.05 }) {
+                        movedBeforeActivation = true
+                    }
+                    furthest = max(furthest, abs(positions[0]), abs(positions[2]))
+                    let delta = positions[0] - previousLeft
+                    if time > 0, abs(delta) > 1e-4, delta * previousDelta < 0 { reversals += 1 }
+                    if abs(delta) > 1e-4 { previousDelta = delta }
+                    previousLeft = positions[0]
+                    let age = row.activatedAt.map { time - $0 } ?? 0
+                    let swapping = row.moment == .swapping && age > 0.8 && age < 3.05
+                    if !swapping {
+                        assert(positions[1] - positions[0] >= touch - 1e-4, "Cradle pots overlapped")
+                        assert(positions[2] - positions[1] >= touch - 1e-4, "Cradle pots overlapped")
+                        closest = min(closest, positions[1] - positions[0], positions[2] - positions[1])
+                    }
                     for lane in positions {
                         let bounds = HoneySlideRules.potBounds(depth: HoneySlideRules.playerDepth, lateral: lane,
                             elapsed: 0, billboardYScale: 1)
                         assert(bounds.minX >= 800 - width && bounds.maxX <= 800 + width)
                     }
-                    if time > 3.1 {
-                        assert(abs(positions[1] - positions[0] - HoneySlideRules.laneSpacing) < 1e-6)
-                        assert(abs(positions[2] - positions[1] - HoneySlideRules.laneSpacing) < 1e-6)
-                    }
                 }
-                assert(furthest > row.motionLimit - 0.01 && reversals >= 3)
+                assert(movedBeforeActivation, "Moving answers waited for the previous question")
+                assert(closest < touch + 0.02, "Cradle pots never meet")
+                assert(furthest > touch + row.motionLimit * 0.9 && reversals >= 3)
             }
             for item in ride.items {
                 let bank = HoneySlideRules.trackHalfWidth(depth: HoneySlideRules.playerDepth,
                     widthScale: ride.widthProfile.scale(at: item.worldPosition)) / HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth)
                 assert(item.lateral + item.kind.artworkLateralBounds.lowerBound > -bank)
                 assert(item.lateral + item.kind.artworkLateralBounds.upperBound < bank)
-                assert((2...3).contains(ride.items.filter { $0.checkpointID == item.checkpointID }.count))
+                let placed = ride.items.filter { $0.checkpointID == item.checkpointID }
+                let logs = placed.filter { $0.kind == .log }
+                assert((1...3).contains(logs.count))
+                assert(!placed.contains { $0.kind == .hive })
+                assert(placed.count == logs.count + 1)
+                let positions = logs.map(\.worldPosition).sorted()
+                for pair in zip(positions, positions.dropFirst()) {
+                    assert(pair.1 - pair.0 >= 600, "Logs travelled as a pair")
+                }
             }
         }
         assert(movingKinds == Set([.moving, .swapping]))
@@ -685,7 +725,7 @@ import CoreGraphics
         reopened.synchronize(rounds: resumed.visibleRounds, stage: 1, acceptingInput: true,
             completed: resumed.completedQuestions, streak: resumed.correctStreak)
         assert(reopened.items.map(\.id) == initialItems.map(\.id))
-        print("Layout: three bouncing pots on a four-option road without walls; props from question two, visible on resume, all inside banks")
+        print("Layout: cradle pots already moving on a four-option road; several logs, no hives, visible on resume, all inside banks")
     }
 
     private static func checkAdaptiveTrackWidth() {
@@ -771,13 +811,19 @@ import CoreGraphics
             assert(stopped != nil)
             var ride = stopped!
             let distance = ride.distance, time = ride.elapsed
+            let posedBefore = ride.items.first { $0.id == logID }!.posed(at: ride.elapsed).worldPosition
             ride.steer(to: logLane); ride.advance(seconds: 2)
-            assert(ride.distance == distance && ride.elapsed > time && ride.blockedLogID == logID && ride.speed == 0)
-            assert(ride.items.first { $0.id == logID } != nil)
+            let drifted = HoneySlideRules.forwardSpeed * 0.25 * 2
+            assert(ride.elapsed > time && ride.blockedLogID == logID && ride.speed == 0)
+            assert(ride.distance > distance + drifted * 0.6 && ride.distance < distance + drifted * 1.4,
+                "The middle of a log should carry the rider at the log's drift, not freeze the world")
             let log = ride.items.first { $0.id == logID }!
-            let depth = HoneySlideRules.depth(ahead: log.worldPosition - ride.distance)
+            let posedNow = log.posed(at: ride.elapsed).worldPosition
+            assert(posedNow > posedBefore + drifted * 0.8, "A held log stopped drifting")
+            let posed = log.posed(at: ride.elapsed)
+            let depth = HoneySlideRules.depth(ahead: posed.worldPosition - ride.distance)
             let scale = depth / HoneySlideRules.playerDepth * ride.cameraZoom
-            let position = HoneySlideRules.ridingPoint(depth: depth, lateral: log.lateral,
+            let position = HoneySlideRules.ridingPoint(depth: depth, lateral: posed.lateral,
                 distance: ride.travelTime, course: ride.course, cameraZoom: ride.cameraZoom)
             let paintedBottom = position.y + HoneyLogGeometry.maxY * scale * HoneySlideRules.billboardVerticalScale(viewport: size)
             assert(abs(paintedBottom - ride.logFootprint.minY) < 9, "Stopped ahead of the visible tube nose")
@@ -790,11 +836,12 @@ import CoreGraphics
             let side = logLane >= 0 ? -1.0 : 1.0
             // Just four logical pixels beside the visible bark, rather than
             // steering all the way to the opposite rail to release the stop.
+            let heldDistance = ride.distance
             ride.steer(to: (edge - origin - ride.logFootprint.center.x + side * (sqrt(ride.logFootprint.xx) + 4)) / width)
             var escaped = false
             for _ in 0..<240 {
                 ride.advance(seconds: 1.0 / 120)
-                if ride.distance > distance + 1 { escaped = true; break }
+                if ride.blockedLogID == nil && ride.distance > heldDistance + 30 { escaped = true; break }
             }
             assert(escaped && ride.blockedLogID == nil, "Invisible log margin prevented steering past the bark")
         }
@@ -821,6 +868,16 @@ import CoreGraphics
                 ride.advance(seconds: 0.11); assert(ride.elapsed > timer && ride.slowUntil == timer)
             } else if kind == .ramp {
                 let launchTime = ride.elapsed, jump = ride.jump!
+                assert(abs(jump.peakPosition - (jump.startPosition + jump.landingPosition) / 2) < 1e-6)
+                var previous = 0.0, rose = false, fell = false
+                for step in 1...48 {
+                    let position = jump.startPosition + (jump.landingPosition - jump.startPosition) * Double(step) / 48
+                    let height = jump.height(at: position)
+                    if height > previous + 1e-5 { assert(!fell, "Jump arc rose again after it had started falling"); rose = true }
+                    if height < previous - 1e-5 { fell = true }
+                    previous = height
+                }
+                assert(rose && fell, "Jump was not one smooth arc")
                 while ride.distance + HoneySlideRules.playerAhead < jump.peakPosition { ride.advance(seconds: 1.0 / 240) }
                 assert(ride.jumpHeight > 0.99 && ride.isAirborne)
                 assert(ride.jumpHeight * 393 * HoneySlideRules.jumpLift > 130)
@@ -849,8 +906,13 @@ import CoreGraphics
                 assert(layout != nil)
                 var ride = layout!
                 let ramp = ride.items.first { $0.checkpointID == 0 && $0.kind == .ramp }!
-                assert(abs(ride.activeCheckpoint!.worldPosition - ramp.worldPosition - HoneySlideRules.rampLead) < 1e-9)
+                let rowPosition = ride.activeCheckpoint!.worldPosition
+                assert(abs(rowPosition - ramp.worldPosition - HoneySlideRules.rampLead) < 1e-9)
                 assert(ride.activeCheckpoint!.dividerBoundaries.contains { abs($0 - ramp.lateral) < 1e-9 })
+                let deckStart = ride.course.sample(at: rowPosition - HoneySlideRules.launchDeckLead)
+                let deckEnd = ride.course.sample(at: rowPosition - HoneySlideRules.dividerLead)
+                assert(abs(deckStart.slope - deckEnd.slope) < 1e-6, "Launch plank bends away from the answer stones")
+                assert(abs(deckEnd.x - deckStart.x - deckStart.slope * (HoneySlideRules.launchDeckLead - HoneySlideRules.dividerLead)) < 1e-4)
                 var frames = 0
                 while ride.crossing(roundID: engine.round!.id) == nil {
                     if !ride.isAirborne { avoidLogs(&ride, target: ramp.lateral) }
@@ -858,7 +920,9 @@ import CoreGraphics
                     frames += 1; assert(frames < 3000)
                 }
                 let row = ride.activeCheckpoint!
-                assert(ride.crossing(roundID: engine.round!.id)!.index == nil && ride.isAirborne)
+                let crossed = ride.crossing(roundID: engine.round!.id)!
+                assert(crossed.index == nil && ride.isAirborne,
+                    "Missed the launch plank at \(ramp.lateral), rider \(ride.lateral), height \(ride.jumpHeight)")
                 let tubeBottom = ride.tubeFootprint.maxY - ride.jumpHeight * 900 * HoneySlideRules.jumpLift
                 let top = row.options.indices.map {
                     HoneySlideRules.potBounds(depth: HoneySlideRules.playerDepth,
@@ -972,10 +1036,13 @@ import CoreGraphics
             while engine.state != .gameOver {
                 let round = engine.round!, row = ride.activeCheckpoint!
                 let right = engine.completedQuestions % 4 != 3
-                let index = row.options.firstIndex { $0.isCorrect == right }!
+                let matching = row.options.firstIndex { $0.isCorrect == right }
+                let index = matching ?? row.options.startIndex
+                let rampTarget = ride.items.first { $0.checkpointID == row.id && $0.kind == .ramp }?.lateral
                 var frames = 0
                 while ride.crossing(roundID: round.id) == nil {
-                    avoidLogs(&ride, target: row.lateralPosition(at: index, elapsed: ride.elapsed))
+                    let aim = matching == nil && right ? (rampTarget ?? 0) : row.lateralPosition(at: index, elapsed: ride.elapsed)
+                    avoidLogs(&ride, target: aim)
                     ride.advance(seconds: 1.0 / 60)
                     frames += 1; assert(frames < 2500, "Autopilot stranded behind a log")
                 }
@@ -995,6 +1062,26 @@ import CoreGraphics
         }
         assert(attempts == 250)
         print("Sessions: 250 questions over six math topics, one Honey per correct answer, no secondary score")
+    }
+
+    private static func checkFinishApproachIsVisible() {
+        for seed in 0..<24 {
+            var course = HoneySlideCourse(seed: UInt64(seed), initialSegments: 48)
+            let row = HoneySlideRules.playerAhead + 14 * HoneySlideRules.checkpointSpacing
+            course.straightenFinish(after: row - HoneySlideRules.drawDistance)
+            let ramp = row + HoneySlideRules.finishRampLead
+            let rider = ramp - HoneySlideRules.drawDistance + 40
+            let elapsed = rider / HoneySlideRules.forwardSpeed
+            let center = HoneySlideRules.trackPoint(depth: HoneySlideRules.depth(ahead: ramp - rider),
+                offset: 0, distance: elapsed, course: course)
+            assert(abs(center.x - 800) < 24, "Finish ramp hid around a bend")
+            for lateral in [-0.66, 0.0, 0.66] {
+                let bounds = HoneySlideRules.potBounds(depth: HoneySlideRules.depth(ahead: row - rider),
+                    lateral: lateral, elapsed: elapsed, billboardYScale: 1, course: course)
+                assert(abs(bounds.midX - 800) < 140, "Final answers appeared at the screen edge")
+            }
+        }
+        print("Finish approach: ramp and last answers stay on screen from the horizon")
     }
 
     private static func checkFinishSequence() {
@@ -1058,8 +1145,8 @@ import CoreGraphics
                     assert(ride.railLimit > 0 && abs(ride.lateral) <= ride.railLimit + 1e-5)
                     frames += 1; assert(frames < 4500)
                 }
-                assert(abs(ride.lateral) < 0.001 && !ride.isFinishComplete)
-                assert(ride.elapsed - ride.finish!.startedAt! < 1.05, "Finish launch still has a long runout")
+                assert(abs(ride.lateral) <= ride.railLimit + 1e-4 && !ride.isFinishComplete)
+                assert(ride.elapsed - ride.finish!.startedAt! < 1.7, "Finish launch still has a long runout")
                 if airborne { assert(ride.jumpHeight == 0, "Normal ramp had not landed before the finish ramp") }
                 assert(abs(ride.widthProfile.scale(at: ride.distance + HoneySlideRules.playerAhead) - HoneySlideRules.finishWidth) < 1e-9)
                 let launchDistance = ride.distance, launchTime = ride.elapsed
@@ -1068,14 +1155,17 @@ import CoreGraphics
                 let spriteHeight = HoneyTubeGeometry.spriteWidth(in: size) * HoneyTubeGeometry.imageAspect * ride.cameraZoom
                 assert(size.height * 0.735 + spriteHeight / 2 - ride.riderLift * size.height < 0,
                     "Result could cover a bear still in view")
-                assert(!ride.isFinishComplete && ride.distance == launchDistance)
+                assert(!ride.isFinishComplete && ride.distance > launchDistance)
                 ride.advance(seconds: HoneySlideRules.finishFlightDuration * 0.45 + 0.01)
                 assert(ride.isFinishComplete && ride.visualOutcomeSettled && engine.cards == finalHoney && engine.completedQuestions == engine.maximumRounds)
-                let settledTime = ride.elapsed
-                ride.advance(seconds: 10); assert(ride.elapsed == settledTime && ride.distance == launchDistance)
+                let settledTime = ride.elapsed, settledDistance = ride.distance
+                ride.advance(seconds: 10); assert(ride.elapsed == settledTime && ride.distance == settledDistance)
                 var stalled = started
                 stalled.advance(seconds: 10)
-                assert(stalled.isFinishComplete && abs(stalled.distance - launchDistance) < 1e-5)
+                let stalledDistance = stalled.distance
+                assert(stalled.isFinishComplete && stalled.distance > launchDistance)
+                stalled.advance(seconds: 10)
+                assert(stalled.distance == stalledDistance)
                 assert(HoneySlideSimulation().finish == nil)
             }
         }

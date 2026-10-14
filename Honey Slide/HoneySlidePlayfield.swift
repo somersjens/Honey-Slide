@@ -171,10 +171,12 @@ struct HoneySlidePlayfield: View {
             if model.acceptsInput, let round = model.round,
                let hit = simulation.crossing(roundID: round.id) {
                 lastPrompt = round.question.prompt
-                if model.select(optionID: hit.option?.id) {
+                let jumpScores = hit.option == nil && simulation.activeCheckpoint?.correctIsAbsent == true
+                let optionID = jumpScores ? model.round?.correctOption?.id : hit.option?.id
+                if model.select(optionID: optionID) {
                     simulation.markSelected(checkpointID: hit.checkpointID, index: hit.index,
-                                            correct: hit.isCorrect)
-                    model.reportCatchOutcome(isCorrect: hit.isCorrect)
+                                            correct: jumpScores || hit.isCorrect)
+                    model.reportCatchOutcome(isCorrect: jumpScores || hit.isCorrect)
                     synchronizeCheckpoints()
                 }
             }
@@ -438,7 +440,7 @@ private struct HoneySlideWorld: View {
             objects.append(DepthObject(ahead: ahead, content: .pots(index)))
         }
         for (index, item) in simulation.items.enumerated() {
-            let ahead = item.worldPosition - world
+            let ahead = item.posed(at: simulation.elapsed).worldPosition - world
             guard ahead > -140, ahead < HoneySlideRules.drawDistance else { continue }
             objects.append(DepthObject(ahead: ahead, content: .item(index)))
         }
@@ -464,13 +466,31 @@ private struct HoneySlideWorld: View {
                     drawFinishRamp(&layer, projection: projection)
                     continue
                 }
-                let depth = HoneySlideRules.depth(ahead: item.worldPosition - world)
-                let position = ridingPoint(depth, item.lateral)
+                if item.kind == .ramp {
+                    drawLaunchRamp(&layer, item: item)
+                    continue
+                }
+                let posed = item.posed(at: simulation.elapsed)
+                let depth = HoneySlideRules.depth(ahead: posed.worldPosition - world)
+                let position = ridingPoint(depth, posed.lateral)
                 layer.translateBy(x: position.x, y: position.y)
                 layer.scaleBy(x: depth / HoneySlideRules.playerDepth * simulation.cameraZoom,
                               y: depth / HoneySlideRules.playerDepth * billboardYScale * simulation.cameraZoom)
                 if item.kind == .whirlpool {
                     HoneyRaceArtwork.draw(.whirlpool, in: &layer, phase: simulation.elapsed)
+                } else if item.kind == .log, let symbol = c.resolveSymbol(id: "race:log") {
+                    let sinkT = simulation.checkpoints.first { $0.id == posed.checkpointID }
+                        .map { posed.sinkProgress(rowPosition: $0.worldPosition) } ?? 0
+                    if sinkT < 1 {
+                        // The lower half rests under the honey. A log that has
+                        // carried the rider up to the answers sinks the rest of the way.
+                        let waterline = 30.0
+                        let sink = HoneyLogGeometry.submergedHalf + 22 + sinkT * sinkT * 120
+                        var sunk = layer
+                        sunk.opacity *= 1 - sinkT
+                        sunk.clip(to: Path(CGRect(x: -420, y: -560, width: 840, height: 560 + waterline)))
+                        sunk.draw(symbol, at: CGPoint(x: 0, y: waterline + sink), anchor: .bottom)
+                    }
                 } else if let symbol = c.resolveSymbol(id: "race:\(item.kind.rawValue)") {
                     if let contact = item.contactedAt, item.kind == .hive {
                         let progress = min(1, max(0, (simulation.elapsed - contact) / 0.65))
@@ -490,6 +510,67 @@ private struct HoneySlideWorld: View {
                 drawCheckpoints(&layer, row: simulation.checkpoints[index], billboardYScale: billboardYScale)
             }
         }
+    }
+
+    /// A straight plank on the divider's centerline. Its edges use the same
+    /// road projection as the answer stones, so a heading change cannot bend it.
+    private func drawLaunchRamp(_ c: inout GraphicsContext, item: HoneyTrackItem) {
+        guard let row = simulation.checkpoints.first(where: { $0.id == item.checkpointID }) else { return }
+        let nearWorld = row.worldPosition - HoneySlideRules.launchDeckLead
+        let farWorld = row.worldPosition - HoneySlideRules.dividerLead
+        let half = 0.125
+        let steps = 18
+        func surface(_ world: Double, _ across: Double, _ rise: Double) -> CGPoint {
+            let depth = HoneySlideRules.depth(ahead: world - simulation.distance)
+            let p = ridingPoint(depth, item.lateral + across)
+            return CGPoint(x: p.x, y: p.y - rise)
+        }
+        func sample(_ step: Int, _ across: Double) -> CGPoint {
+            let t = Double(step) / Double(steps)
+            let world = nearWorld + (farWorld - nearWorld) * t
+            let kick = max(0, (t - 0.72) / 0.28)
+            let rise = kick * kick * HoneySlideRules.railHeight * HoneySlideRules.depth(ahead: world - simulation.distance) * 0.85
+            return surface(world, across * half, rise)
+        }
+        var deck = Path()
+        deck.move(to: sample(0, -1))
+        for step in 1...steps { deck.addLine(to: sample(step, -1)) }
+        for step in stride(from: steps, through: 0, by: -1) { deck.addLine(to: sample(step, 1)) }
+        deck.closeSubpath()
+        c.fill(deck, with: .linearGradient(Gradient(colors: [
+            Color(red: 0.91, green: 0.65, blue: 0.31), Color(red: 0.78, green: 0.44, blue: 0.15),
+            Color(red: 0.53, green: 0.27, blue: 0.07)]),
+            startPoint: sample(steps, 0), endPoint: sample(0, 0)))
+        c.stroke(deck, with: .color(Color(red: 0.29, green: 0.12, blue: 0.025).opacity(0.65)), lineWidth: 1.4)
+        for step in 1..<7 {
+            let index = step * steps / 7
+            var seam = Path()
+            seam.move(to: sample(index, -1))
+            seam.addLine(to: sample(index, 1))
+            c.stroke(seam, with: .color(.brown.opacity(0.38)), lineWidth: 1.6)
+        }
+        for t in [0.78, 0.88, 0.97] {
+            let step = Int((t * Double(steps)).rounded())
+            let next = min(steps, step + 2)
+            var arrow = Path()
+            arrow.move(to: sample(step, -0.42))
+            arrow.addLine(to: sample(next, 0))
+            arrow.addLine(to: sample(step, 0.42))
+            arrow.addLine(to: sample(max(0, step - 1), 0.42))
+            arrow.addLine(to: sample(min(steps, next - 1), 0))
+            arrow.addLine(to: sample(max(0, step - 1), -0.42))
+            arrow.closeSubpath()
+            c.fill(arrow, with: .linearGradient(Gradient(colors: [
+                Color(red: 1, green: 0.35, blue: 0.08), Color(red: 0.88, green: 0.15, blue: 0.045),
+                Color(red: 0.64, green: 0.08, blue: 0.025)]),
+                startPoint: sample(next, 0), endPoint: sample(step, 0)))
+        }
+        var lip = Path()
+        lip.move(to: sample(0, -1.05))
+        lip.addLine(to: sample(0, 1.05))
+        let depth = HoneySlideRules.depth(ahead: nearWorld - simulation.distance)
+        c.stroke(lip, with: .color(Color(red: 1, green: 0.82, blue: 0.20).opacity(0.9)),
+            style: StrokeStyle(lineWidth: max(1.5, 7 * depth), lineCap: .round))
     }
 
     private func drawFinishRamp(_ c: inout GraphicsContext, projection: HoneySlideProjection) {
@@ -863,12 +944,14 @@ private enum HoneyRiderDrawing {
         let width = originalWidth * simulation.cameraZoom
         let player = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth,
             lateral: simulation.lateral, distance: simulation.travelTime, course: simulation.course, cameraZoom: simulation.cameraZoom, cameraOffset: simulation.cameraOffset)
-        let bob = HoneyTubeGeometry.bob(in: size, elapsed: simulation.elapsed, reduceMotion: reduceMotion)
+        let bobScale = 1 - min(1, simulation.jumpHeight / 0.2)
+        let bob = HoneyTubeGeometry.bob(in: size, elapsed: simulation.elapsed, reduceMotion: reduceMotion) * bobScale
         var sprite = context
         sprite.translateBy(x: player.x / 1600 * size.width, y: size.height * 0.735 + bob + (originalWidth - width) * HoneyTubeGeometry.imageAspect * 0.212
             - simulation.riderLift * size.height)
-        let launchTilt = simulation.hasFinishLaunched ? -8 * sin(simulation.finishFlightProgress * .pi) : 0
-        sprite.rotate(by: .degrees(reduceMotion ? 0 : simulation.tubeHeading + launchTilt))
+        let launchTilt = simulation.hasFinishLaunched ? -28 * (1 - simulation.finishFlightProgress) : 0
+        let pitch = reduceMotion ? 0 : simulation.jumpPitch
+        sprite.rotate(by: .degrees(reduceMotion ? 0 : simulation.tubeHeading + launchTilt + pitch))
         sprite.scaleBy(x: width / 400, y: width / 400)
         sprite.draw(bear, at: .zero)
     }

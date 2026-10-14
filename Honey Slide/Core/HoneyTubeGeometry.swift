@@ -136,6 +136,8 @@ enum HoneyLogGeometry {
     static let halfHeight = 62.5
     static let minY = centerY - halfHeight
     static let maxY = centerY + halfHeight
+    /// The lower half sits under the honey. The cut rests on the waterline.
+    static let submergedHalf = (maxY - minY) * 0.5
 
     static func span(at y: Double) -> ClosedRange<Double> {
         let fraction = (y - centerY) / halfHeight
@@ -156,7 +158,8 @@ enum HoneyLogContact {
         let scaleY = scaleX * HoneySlideRules.billboardVerticalScale(viewport: viewport)
         let position = HoneySlideRules.ridingPoint(depth: depth, lateral: item.lateral,
             distance: distance / HoneySlideRules.forwardSpeed, course: course, cameraZoom: cameraZoom)
-        let low = max(footprint.minY, position.y + HoneyLogGeometry.minY * scaleY)
+        // Only the half that remains above the honey can stop the tube.
+        let low = max(footprint.minY, position.y + HoneyLogGeometry.centerY * scaleY)
         let high = min(footprint.maxY, position.y + HoneyLogGeometry.maxY * scaleY)
         guard low < high else { return nil }
         let width = HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) * cameraZoom
@@ -165,11 +168,22 @@ enum HoneyLogContact {
         var lower = Double.infinity, upper = -Double.infinity
         for sample in 0...32 {
             let y = low + (high - low) * Double(sample) / 32
-            let span = HoneyLogGeometry.span(at: (y - position.y) / scaleY)
+            let artworkY = HoneyLogGeometry.minY + (y - position.y) / scaleY - HoneyLogGeometry.centerY
+            let span = HoneyLogGeometry.span(at: artworkY)
             let slice = footprint.slice(at: y)
             lower = min(lower, (position.x + span.lowerBound * scaleX - origin - slice.upperBound) / width)
             upper = max(upper, (position.x + span.upperBound * scaleX - origin - slice.lowerBound) / width)
         }
         return lower...upper
+    }
+
+    /// Half-width of the solid middle, in rider lateral units. The ends outside
+    /// this band are a light bump, not a stop.
+    static func coreHalf(depth: Double, cameraZoom: Double, viewport: CGSize) -> Double {
+        let scaleX = depth / HoneySlideRules.playerDepth * cameraZoom
+        let span = HoneyLogGeometry.span(at: HoneyLogGeometry.centerY)
+        let pixels = (span.upperBound - span.lowerBound) * 0.5 * scaleX
+        let riding = HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) * cameraZoom
+        return pixels / max(1, riding) * 0.38
     }
 }
