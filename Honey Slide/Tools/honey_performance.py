@@ -20,22 +20,34 @@ parser.add_argument("--source-dir", type=pathlib.Path, default=ROOT)
 parser.add_argument("--output", type=pathlib.Path, default=pathlib.Path("/tmp/honey-performance"))
 parser.add_argument("--samples", type=int, default=24)
 parser.add_argument("--scenario-prefix", help="Render only scenes with this prefix, e.g. finish-")
+parser.add_argument("--whirlpool-animation", action="store_true", help="Also export the nearby whirlpool rotation as a GIF")
 parser.add_argument("--compile-only", action="store_true", help="Leave the compiled runner for Instruments")
 parser.add_argument("--simulator-app", action="store_true", help="Build an isolated 32-second iOS simulator workload")
 parser.add_argument("--assets", type=pathlib.Path, help="Existing simulator app containing Assets.car")
 parser.add_argument("--idle-course", action="store_true", help="Leave the isolated simulator rider unattended to inspect straight travel and rail sliding")
+parser.add_argument("--export-artwork", type=pathlib.Path, help="Regenerate the fixed gameplay textures in an asset catalog")
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
 source = (args.source_dir / "HoneySlidePlayfield.swift").read_text()
 source = source[source.index("private struct HoneySlideWorld:"):]
 # Offscreen rendering must be synchronous to measure a complete draw.
 source = source.replace("rendersAsynchronously: true", "rendersAsynchronously: false")
+if not args.simulator_app:
+    source = source.replace("phase: simulation.elapsed", "phase: simulation.elapsed + RenderBenchmark.phaseOffset")
+    source = source.replace("phase: reduceMotion ? 0 : simulation.elapsed", "phase: reduceMotion ? 0 : simulation.elapsed + RenderBenchmark.phaseOffset")
+    # The standalone Mac binary has no compiled asset catalog. Load exactly
+    # the bundled PNGs used by the application, retaining them like Image(name).
+    source = source.replace("Image(assetName)", "Image(nsImage: RenderBenchmark.artwork(assetName))")
 for section in ["drawWorld", "drawLandscape", "drawSlide", "drawChurningHoney", "drawRailHoney", "drawDepthObjects", "drawRailBlock", "drawCheckpoints", "dividerWall", "barrel"]:
     marker = "private func " + section + "("
     if marker not in source:
         continue
     pos = source.index("{", source.index(marker)) + 1
     source = source[:pos] + f'\n        let benchmarkStart = RenderBenchmark.now\n        defer {{ RenderBenchmark.record("{section}", since: benchmarkStart) }}\n' + source[pos:]
+source = source.replace('        let renderer = ImageRenderer(content: content.frame',
+    '        RenderBenchmark.count("bitmap_miss")\n        let bitmapStart = RenderBenchmark.now\n        defer { RenderBenchmark.record("bitmap_rasterization", since: bitmapStart) }\n        let renderer = ImageRenderer(content: content.frame')
+source = source.replace('        images.setObject(image, forKey: cacheKey, cost: image.bytesPerRow * image.height)',
+    '        RenderBenchmark.count("bitmap_bytes", amount: image.bytesPerRow * image.height)\n        images.setObject(image, forKey: cacheKey, cost: image.bytesPerRow * image.height)')
 marker = "private func point(_ depth:"
 if marker in source:
     pos = source.index("{", source.index(marker)) + 1
@@ -55,14 +67,25 @@ struct CurrencyIcon: View {
     var body: some View { Image(systemName: "drop.fill").resizable().scaledToFit().frame(width: size, height: size) }
 }
 final class RenderBenchmark {
+    static var artworkDirectory = URL(fileURLWithPath: ARTWORK_DIRECTORY)
+    static var artworkImages: [String: NSImage] = [:]
+    static func artwork(_ name: String) -> NSImage {
+        if let image = artworkImages[name] { return image }
+        let url = artworkDirectory.appendingPathComponent(name + ".imageset/" + name + ".png")
+        let image = NSImage(contentsOf: url)!
+        artworkImages[name] = image
+        return image
+    }
+    static var phaseOffset = 0.0
     static var totals: [String: Double] = [:]
     static var counts: [String: Int] = [:]
     static var now: Double { ProcessInfo.processInfo.systemUptime }
     static func record(_ key: String, since start: Double) { totals[key, default: 0] += (now - start) * 1000 }
-    static func count(_ key: String) { counts[key, default: 0] += 1 }
+    static func count(_ key: String, amount: Int = 1) { counts[key, default: 0] += amount }
     static func reset() { totals.removeAll(keepingCapacity: true); counts.removeAll(keepingCapacity: true) }
 }
 '''
+prefix = prefix.replace("ARTWORK_DIRECTORY", json.dumps(str(ROOT / "Assets.xcassets")))
 # Historical renderer snapshots used the shared currency pot inside the HUD.
 # Keep that artwork in baseline runs; the current HUD owns its pot directly.
 if "CurrencyIcon(size: 71 * scale)" in source:
@@ -177,6 +200,7 @@ private struct BenchmarkScene: View {
                 var frameTimes: [Double] = []
                 var sections: [String: [Double]] = [:]
                 var countTotals: [String: Int] = [:]
+                var firstFrame: [String: Any] = [:]
                 for frame in -4..<samples {
                     sim.advance(seconds: 1.0 / 60)
                     RenderBenchmark.reset()
@@ -187,6 +211,10 @@ private struct BenchmarkScene: View {
                         return renderer.cgImage!
                     }
                     let total = (RenderBenchmark.now - start) * 1000
+                    if frame == -4 {
+                        firstFrame = ["offscreen_ms": total, "sections_ms": RenderBenchmark.totals,
+                            "counts": RenderBenchmark.counts]
+                    }
                     if frame >= 0 {
                         frameTimes.append(total)
                         for (key, value) in RenderBenchmark.totals { sections[key, default: []].append(value) }
@@ -203,6 +231,7 @@ private struct BenchmarkScene: View {
                     return ["mean_ms": sorted.reduce(0, +) / Double(sorted.count), "median_ms": sorted[sorted.count / 2], "p95_ms": sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.95))], "max_ms": sorted.last!]
                 }
                 let result: [String: Any] = ["scenario": scenario, "viewport": phone ? "phone" : "pad", "samples": samples,
+                    "first_frame": firstFrame,
                     "lateral": sim.lateral, "rail_contact": sim.railContact, "travel_slope": sim.travelSlope,
                     "offscreen": stats(frameTimes), "sections": sections.mapValues(stats), "counts_per_frame": countTotals.mapValues { Double($0) / Double(samples) }]
                 report.append(result)
@@ -288,12 +317,66 @@ if "HoneyRaceArtwork" in source:
                                 }
                                 initial = candidate; found = true; break
                             }
-                            if candidate.distance + HoneySlideRules.playerAhead > item.worldPosition + 100 { break }
+                            let posedPosition = candidate.items.first(where: { $0.id == item.id })?
+                                .posed(at: candidate.elapsed).worldPosition ?? item.worldPosition
+                            if candidate.distance + HoneySlideRules.playerAhead > posedPosition + 100 { break }
                         }
                     }
                     precondition(found, "No effect preview for \(scenario)")
                 }
                 while (scenario.hasPrefix("width-")''')
+    # Follow a real drifting log through its late answer approach so sinking
+    # and collision release can be inspected together on phone and tablet.
+    driver = driver.replace('        scenarios += HoneyAnswerMoment.allCases.map',
+        '        scenarios += ["early", "start", "half", "closing", "gone"].map { ("log-sink-" + $0, 0.0, true) }\n        scenarios += HoneyAnswerMoment.allCases.map')
+    driver = driver.replace('                var sim = initial', r'''
+                if scenario.hasPrefix("log-sink-") {
+                    var candidate = HoneySlideSimulation(courseSeed: 0)
+                    candidate.configureViewport(size)
+                    candidate.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true, completed: 8)
+                    let row = candidate.activeCheckpoint!
+                    let item = candidate.items.filter { $0.checkpointID == row.id && $0.kind == .log }
+                        .min { $0.worldPosition < $1.worldPosition }!
+                    let lead = ["log-sink-early": 900.0, "log-sink-start": 560, "log-sink-half": 390,
+                                "log-sink-closing": 300, "log-sink-gone": 220][scenario]!
+                    var found = false
+                    for _ in 0..<6000 {
+                        guard let current = candidate.items.first(where: { $0.id == item.id })?.posed(at: candidate.elapsed) else { break }
+                        if row.worldPosition - current.worldPosition <= lead { found = true; break }
+                        candidate.steer(to: current.lateral)
+                        candidate.advance(seconds: 1.0 / 120)
+                    }
+                    precondition(found, "No log sinking phase for \(scenario)")
+                    initial = candidate
+                }
+                var sim = initial''')
+    # Keep the whole surface visible beside the rider, at a fixed camera
+    # position, so phase comparisons reveal rotation rather than camera travel.
+    driver = driver.replace('        scenarios += HoneyAnswerMoment.allCases.map',
+        '        scenarios += ["far", "near", "phase-0", "phase-1", "phase-2", "phase-3"].map { ("whirlpool-" + $0, 0.0, true) }\n        scenarios += HoneyAnswerMoment.allCases.map')
+    driver = driver.replace('                var sim = initial', r'''
+                if scenario.hasPrefix("whirlpool-") {
+                    var found = false
+                    for seed in 0..<100 where !found {
+                        var candidate = HoneySlideSimulation(courseSeed: UInt64(seed))
+                        candidate.configureViewport(size)
+                        candidate.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true, completed: 8)
+                        guard let item = candidate.items.first(where: { $0.checkpointID == 0 && $0.kind == .whirlpool }) else { continue }
+                        let lead = scenario == "whirlpool-far" ? 950.0 : scenario == "whirlpool-near" ? 180.0 : 420.0
+                        while item.worldPosition - candidate.distance > HoneySlideRules.playerAhead + lead {
+                            candidate.steer(to: item.lateral >= 0 ? -candidate.railLimit * 0.75 : candidate.railLimit * 0.75)
+                            candidate.advance(seconds: 1.0 / 120)
+                            if candidate.blockedLogID != nil { break }
+                        }
+                        guard candidate.blockedLogID == nil else { continue }
+                        initial = candidate; found = true
+                    }
+                    precondition(found, "No clear whirlpool approach")
+                }
+                var sim = initial''')
+    driver = driver.replace('                let renderer = ImageRenderer(content: BenchmarkScene', r'''
+                RenderBenchmark.phaseOffset = scenario.hasPrefix("whirlpool-phase-") ? Double(Int(scenario.suffix(1))!) * 0.32 : 0
+                let renderer = ImageRenderer(content: BenchmarkScene''')
     driver = driver.replace('@main struct RendererPerformance {', r'''
 private struct RaceArtworkSheet: View {
     private func label(_ kind: HoneyTrackItemKind) -> String {
@@ -319,7 +402,7 @@ private struct RaceArtworkSheet: View {
                         Canvas { context, size in
                             var c = context
                             c.translateBy(x: size.width / 2, y: size.height - 50)
-                            let scale = kind == .whirlpool ? 0.37 : 0.64
+                            let scale = kind == .whirlpool ? 0.37 / HoneyWhirlpoolFlow.sizeScale : 0.64
                             c.scaleBy(x: scale, y: scale)
                             HoneyRaceArtwork.draw(kind, in: &c)
                         }
@@ -418,9 +501,8 @@ if "simulation.isFinishComplete" in source:
 if "private var scorePotScale: CGFloat" in source:
     driver = driver.replace("(phone ? 59 : 0) + max(16, 58 * scale)", "max(phone ? 59 : 0, max(12, 22 * scale))")
 if "private var scorePanelWidth: CGFloat" in source:
-    driver = driver.replace("max(phone ? 59 : 0, max(12, 22 * scale))", "(phone ? 59 : 0) + max(12, 22 * scale)")
     driver = driver.replace("width: proxy.size.width, prompt: prompt",
-                            "width: proxy.size.width - 2 * ((phone ? 59 : 0) + max(12, 22 * scale)), prompt: prompt")
+                            "width: proxy.size.width - 2 * max(phone ? 59 : 0, max(12, 22 * scale)), prompt: prompt")
 if "let rider: Image?" in source:
     start = driver.index("                HoneySlideWorld(simulation: simulation)")
     end = driver.index("                VStack {", start)
@@ -465,7 +547,7 @@ final class RenderBenchmark {
         lock.lock(); defer { lock.unlock() }
         samples[key, default: []].append(duration)
     }
-    static func count(_ key: String) {} // No per-vertex profiling overhead.
+    static func count(_ key: String, amount: Int = 1) {} // No per-vertex profiling overhead.
 }
 '''
     prefix = prefix.replace("import AppKit", "import UIKit\nimport Combine")
@@ -474,6 +556,8 @@ final class RenderBenchmark {
     driver += r'''
 final class CadenceStatistics {
     var intervals: [Double] = []
+    var startupIntervals: [Double] = []
+    var frameGaps: [[String: Double]] = []
     func write() {
         func stats(_ values: [Double]) -> [String: Double] {
             let sorted = values.sorted()
@@ -487,6 +571,9 @@ final class CadenceStatistics {
         let result: [String: Any] = ["delivered_updates_per_second": Double(intervals.count)/seconds,
             "updates": intervals.count, "duration": seconds, "update_interval": stats(intervals),
             "update_gaps_over_25ms": intervals.filter { $0 > 25 }.count,
+            "startup_update_interval": stats(startupIntervals),
+            "startup_gaps_over_25ms": startupIntervals.filter { $0 > 25 }.count,
+            "frame_gaps": frameGaps,
             "encoding": rendering]
         let url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("HoneyPerformance.json")
         try! JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]).write(to: url)
@@ -510,7 +597,33 @@ struct PerformanceHost: View {
             .onAppear {
                 sim.configureViewport(UIScreen.main.bounds.size)
                 _ = engine.start(); _ = engine.turnCardsOver(); _ = engine.beginAnswering()
+                if let round = engine.round, let answer = round.correctOption {
+                    missed = round.question.prompt.replacingOccurrences(of: "?", with: answer.text)
+                }
                 sim.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+                if let argument = CommandLine.arguments.first(where: { $0.hasPrefix("--freeze-collection=") || $0.hasPrefix("--freeze-wrong=") }),
+                   let value = argument.split(separator: "=").last, let age = Double(value), age >= 0, age < 2.5,
+                   let row = sim.activeCheckpoint {
+                    let correct = argument.hasPrefix("--freeze-collection=")
+                    let index = row.options.firstIndex(where: { $0.isCorrect == correct })!
+                    var frames = 0
+                    while sim.crossing(roundID: row.roundID!) == nil {
+                        sim.steer(to: row.lateralPosition(at: index, elapsed: sim.elapsed))
+                        sim.advance(seconds: 1.0 / 120)
+                        frames += 1; precondition(frames < 2500, "No collection contact")
+                    }
+                    let hit = sim.crossing(roundID: row.roundID!)!
+                    precondition(hit.isCorrect == correct)
+                    if !correct, let round = engine.round, let answer = round.correctOption {
+                        missed = round.question.prompt.replacingOccurrences(of: "?", with: answer.text)
+                    }
+                    sim.markSelected(checkpointID: hit.checkpointID, index: hit.index, correct: correct)
+                    _ = engine.select(optionID: hit.option!.id); _ = engine.finishResolving(); engine.advance()
+                    _ = engine.turnCardsOver(); _ = engine.beginAnswering()
+                    sim.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true)
+                    sim.advance(seconds: age)
+                    finished = true
+                }
             }
             // CLOCK_CALLBACK
     }
@@ -520,6 +633,12 @@ struct PerformanceHost: View {
         let dt = max(0, timestamp - last)
         previous = timestamp
         if sim.elapsed > 2 { cadence.intervals.append(dt * 1000) }
+        else { cadence.startupIntervals.append(dt * 1000) }
+        if dt > 0.025 {
+            cadence.frameGaps.append(["elapsed": sim.elapsed, "interval_ms": dt * 1000,
+                "collection_progress": sim.impacts.last(where: { $0.correct })?.progress(at: sim.elapsed) ?? -1,
+                "distance": sim.distance])
+        }
         if !idleCourse, let row = sim.activeCheckpoint,
            let lane = row.options.firstIndex(where: { $0.isCorrect == (engine.completedQuestions % 3 != 1) }) {
             sim.steer(to: Double(lane - 1) * HoneySlideRules.laneSpacing)
@@ -564,16 +683,127 @@ if "HoneyRaceArtwork" in source and args.simulator_app:
             sim.steer(to: log.lateral >= 0 ? -sim.railLimit : sim.railLimit)
         }
         sim.advance(seconds: dt)''')
-if args.scenario_prefix:
+if not args.simulator_app:
+    driver = driver.replace('        for (scenario, time, correct) in scenarios {',
+        '        scenarios += ["cold", "next", "restart"].map { ("startup-" + $0, 0.0, true) }\n        for (scenario, time, correct) in scenarios {')
+    driver = driver.replace('index: 6), seed: 79)', 'index: 6), seed: scenario == "startup-next" ? 93 : 79)')
+    driver = driver.replace('        for (scenario, time, correct) in scenarios {',
+        '        scenarios += ["overlap", "rise", "clear", "hud"].map { ("collection-" + $0, 0.0, true) }\n        for (scenario, time, correct) in scenarios {')
+    driver = driver.replace('                var sim = initial', r'''
+                if scenario.hasPrefix("collection-") {
+                    let row = initial.activeCheckpoint!
+                    let index = row.options.firstIndex(where: { $0.isCorrect })!
+                    var frames = 0
+                    while initial.crossing(roundID: row.roundID!) == nil {
+                        initial.steer(to: row.lateralPosition(at: index, elapsed: initial.elapsed))
+                        initial.advance(seconds: 1.0 / 120)
+                        frames += 1; precondition(frames < 2500, "No collection contact")
+                    }
+                    let hit = initial.crossing(roundID: row.roundID!)!
+                    precondition(hit.isCorrect, "Collection preview missed the correct pot")
+                    initial.markSelected(checkpointID: hit.checkpointID, index: hit.index, correct: true)
+                    _ = engine.select(optionID: hit.option!.id); _ = engine.finishResolving(); engine.advance()
+                    _ = engine.turnCardsOver(); _ = engine.beginAnswering()
+                    initial.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true,
+                        completed: engine.completedQuestions, streak: engine.correctStreak)
+                    initial.advance(seconds: ["collection-overlap": 0.0, "collection-rise": 0.10,
+                        "collection-clear": 0.22, "collection-hud": 0.46][scenario]!)
+                }
+                var sim = initial''')
+if not args.simulator_app:
     driver = driver.replace('for (scenario, time, correct) in scenarios {',
-        'for (scenario, time, correct) in scenarios.filter({ $0.0.hasPrefix(' + json.dumps(args.scenario_prefix, ensure_ascii=False) + ') }) {')
+        'for (scenario, time, correct) in scenarios.filter({ CommandLine.arguments.count < 5 || $0.0.hasPrefix(CommandLine.arguments[4]) }) {')
+if args.whirlpool_animation and not args.simulator_app:
+    driver = driver.replace('                func stats(_ values:', r'''
+                if scenario == "whirlpool-near", phone {
+                    let animation = CGImageDestinationCreateWithURL(URL(fileURLWithPath: "\(output)/whirlpool.gif") as CFURL,
+                        UTType.gif.identifier as CFString, 48, nil)!
+                    CGImageDestinationSetProperties(animation, [kCGImagePropertyGIFDictionary:
+                        [kCGImagePropertyGIFLoopCount: 0]] as CFDictionary)
+                    renderer.scale = 1.5
+                    let duration = Double.pi * 2 / 2.05
+                    for frame in 0..<48 {
+                        RenderBenchmark.phaseOffset = Double(frame) / 48 * duration
+                        renderer.content = BenchmarkScene(simulation: initial, phone: phone, bear: bear,
+                            prompt: prompt, score: score, questionNumber: questionNumber, totalQuestions: totalQuestions)
+                            .frame(width: size.width, height: size.height)
+                        let cg = autoreleasepool { renderer.cgImage! }
+                        CGImageDestinationAddImage(animation, cg, [kCGImagePropertyGIFDictionary:
+                            [kCGImagePropertyGIFDelayTime: duration / 48]] as CFDictionary)
+                    }
+                    _ = CGImageDestinationFinalize(animation)
+                    RenderBenchmark.phaseOffset = 0
+                }
+                func stats(_ values:''')
+if not args.simulator_app:
+    # Keep the sinking silhouette visible when the rider is pressed against it.
+    driver = driver.replace('    var missedChallenge =', '    var showsRider = true\n    var missedChallenge =')
+    driver = driver.replace('HoneySlideWorld(simulation: simulation, rider: Image(nsImage: bear)',
+        'HoneySlideWorld(simulation: simulation, rider: showsRider ? Image(nsImage: bear) : nil')
+    driver = driver.replace('totalQuestions: totalQuestions)',
+        'totalQuestions: totalQuestions, showsRider: !scenario.hasPrefix("log-sink-"))')
+    # A changed phase must invalidate Canvas even when the camera and the
+    # simulation value deliberately stay fixed for the animation comparison.
+    driver = driver.replace('.frame(width: size.width, height: size.height)',
+        '.frame(width: size.width, height: size.height).id(RenderBenchmark.phaseOffset)')
+if args.export_artwork:
+    if args.simulator_app:
+        parser.error("--export-artwork cannot be combined with --simulator-app")
+    # Render the original vector sources at the existing gameplay densities.
+    # Regeneration is explicit; normal builds and gameplay do no export work.
+    export_body = r'''
+        var artwork: [(String, CGSize, Double, AnyView)] = []
+        for variant in 0..<4 {
+            artwork.append(("honey-tree-\(variant)", CGSize(width: 230, height: 300), 3, AnyView(HoneyTreeSymbol(variant: variant))))
+            artwork.append(("honey-rail-face-\(variant)", CGSize(width: 256, height: 96), 2, AnyView(HoneyRailFaceSymbol(variant: variant))))
+        }
+        artwork.append(("honey-rail-cap", CGSize(width: 256, height: 64), 2, AnyView(HoneyRailCapSymbol())))
+        for variant in 0..<3 {
+            artwork.append(("honey-divider-left-\(variant)", CGSize(width: 256, height: 70), 2,
+                AnyView(HoneyDividerFaceSymbol(variant: variant, rightSide: false))))
+            artwork.append(("honey-divider-right-\(variant)", CGSize(width: 256, height: 70), 2,
+                AnyView(HoneyDividerFaceSymbol(variant: variant, rightSide: true))))
+        }
+        for variant in 0..<2 {
+            artwork.append(("honey-brush-\(variant)", CGSize(width: 220, height: 112), 2, AnyView(HoneyUnderbrushSymbol(variant: variant))))
+            artwork.append(("honey-cliff-\(variant)", CGSize(width: 360, height: 330), 3, AnyView(HoneyCliffSymbol(variant: variant))))
+        }
+        artwork.append(("honey-pot-shutter", CGSize(width: 172, height: 156), 2, AnyView(HoneyPotShutterSymbol())))
+        for (name, content) in [("closed", AnyView(HoneyClosedPotSymbol())),
+                                ("open", AnyView(HoneyPotIllustration(text: "")))] {
+            artwork.append(("honey-pot-\(name)", CGSize(width: 308, height: 332), 2, content))
+        }
+        for kind in HoneyTrackItemKind.allCases where kind != .whirlpool {
+            artwork.append(("honey-prop-\(kind.rawValue)", CGSize(width: 420, height: 380), 2, AnyView(HoneyRaceItemSymbol(kind: kind))))
+        }
+        precondition(Set(artwork.map { $0.0 }) == Set(HoneyBundledArtwork.names.values), "Artwork export and runtime registry differ")
+        for (name, size, density, content) in artwork {
+            let directory = URL(fileURLWithPath: output).appendingPathComponent(name + ".imageset")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let renderer = ImageRenderer(content: content.frame(width: size.width, height: size.height))
+            renderer.scale = density
+            let cg = renderer.cgImage!
+            let destination = CGImageDestinationCreateWithURL(directory.appendingPathComponent(name + ".png") as CFURL,
+                UTType.png.identifier as CFString, 1, nil)!
+            CGImageDestinationAddImage(destination, cg, nil)
+            precondition(CGImageDestinationFinalize(destination))
+            let info: [String: Any] = ["images": [["filename": name + ".png", "idiom": "universal", "scale": "\(Int(density))x"]],
+                "info": ["author": "xcode", "version": 1]]
+            try JSONSerialization.data(withJSONObject: info, options: [.prettyPrinted, .sortedKeys])
+                .write(to: directory.appendingPathComponent("Contents.json"))
+            print("Exported \(name): \(cg.width) × \(cg.height)")
+        }
+        '''
+    main_start = driver.index('        let bear = NSImage(contentsOfFile: CommandLine.arguments[3])!')
+    driver = driver[:main_start] + export_body + '\n    }\n}\n'
 with tempfile.TemporaryDirectory(prefix="honey-benchmark-") as temporary:
     tmp = pathlib.Path(temporary)
     generated = tmp / "RendererBenchmark.swift"
     generated.write_text(prefix + source + driver)
     core = sorted((ROOT / "Core").glob("*.swift"))
     if args.source_dir != ROOT:
-        core = [args.source_dir / f.name if (args.source_dir / f.name).exists() else f for f in core]
+        core = [next((candidate for candidate in [args.source_dir / "Core" / f.name, args.source_dir / f.name]
+                      if candidate.exists()), f) for f in core]
     # Count expensive projections separately from the renderer's table lookups.
     rules = next(f for f in core if f.name == "HoneySlideRules.swift")
     rule_source = rules.read_text()
@@ -597,7 +827,7 @@ with tempfile.TemporaryDirectory(prefix="honey-benchmark-") as temporary:
             "CFBundleName": "Honey Performance", "CFBundlePackageType": "APPL", "CFBundleVersion": "1",
             "CFBundleShortVersionString": "1.0", "MinimumOSVersion": "17.0", "LSRequiresIPhoneOS": True,
             "UIDeviceFamily": [1, 2], "UISupportedInterfaceOrientations": ["UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"],
-            "UIStatusBarHidden": True, "UILaunchScreen": {}}
+            "UIRequiresFullScreen": True, "UIStatusBarHidden": True, "UILaunchScreen": {}}
         (app / "Info.plist").write_bytes(plistlib.dumps(info))
         subprocess.run(["codesign", "--force", "--sign", "-", str(app)], check=True)
         print(app)
@@ -605,4 +835,5 @@ with tempfile.TemporaryDirectory(prefix="honey-benchmark-") as temporary:
         binary = args.output / "honey-renderer-performance"
         subprocess.run(["swiftc", "-O", "-module-cache-path", "/tmp/honey-swift-cache", *map(str, core), str(generated), "-o", str(binary)], check=True)
     if not args.compile_only and not args.simulator_app:
-        subprocess.run([str(binary), str(args.output), str(args.samples), str(ROOT / "Assets.xcassets/1_bear.imageset/1_main_honey.png")], check=True)
+        subprocess.run([str(binary), str(args.export_artwork or args.output), str(args.samples),
+            str(ROOT / "Assets.xcassets/1_bear.imageset/1_main_honey.png"), args.scenario_prefix or ""], check=True)

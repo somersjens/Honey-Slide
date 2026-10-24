@@ -9,6 +9,8 @@ import CoreGraphics
         checkRaceSessions()
         checkRaceRewardsAndResume()
         checkTrackEffects()
+        checkLateLogSinking()
+        checkWhirlpoolSurface()
         checkRampClearsAnswers()
         checkRaceCameraPassage()
         checkFinishApproachIsVisible()
@@ -25,6 +27,87 @@ import CoreGraphics
         checkStraightLandings()
         checkCachedProjection()
         print("PASS: obstacle racer, variable/moving answers, late reveals, real misses, track effects, future runway, forced answer channels, solid logs, whirlpools, high jumps and Honey-only rewards, fixed-question sessions, course physics and projection")
+    }
+
+    private static func checkLateLogSinking() {
+        let rowPosition = HoneySlideRules.firstCheckpointPosition
+        var log = HoneyTrackItem(id: 0, checkpointID: 0, kind: .log,
+            worldPosition: rowPosition - 1400, lateral: 0, driftStartedAt: 0)
+        // A newly placed or distant trunk must remain a full obstacle. The
+        // former sink began 1,680 units before the answers and failed this.
+        for lead in [2700.0, 1900, 1400, 900, 600] {
+            log.worldPosition = rowPosition - lead
+            assert(log.sinkProgress(rowPosition: rowPosition) == 0, "Log sank before the final answer approach")
+        }
+        log.worldPosition = rowPosition - 400
+        assert((0.1...0.9).contains(log.sinkProgress(rowPosition: rowPosition)))
+        log.worldPosition = rowPosition - HoneySlideRules.dividerLead
+        assert(log.sinkProgress(rowPosition: rowPosition) == 1, "Log remained above the honey inside the answer passages")
+
+        let engine = readyEngine()
+        for size in [CGSize(width: 852, height: 393), CGSize(width: 1194, height: 834)] {
+            var ride = HoneySlideSimulation(courseSeed: 0)
+            ride.configureViewport(size)
+            ride.synchronize(rounds: engine.visibleRounds, stage: 1, acceptingInput: true, completed: 8)
+            let row = ride.activeCheckpoint!
+            let target = ride.items.filter { $0.checkpointID == row.id && $0.kind == .log }
+                .min { $0.worldPosition < $1.worldPosition }!
+            var reachedLateApproach = false, sawBlocking = false, sawSinking = false, cleared = false
+            for _ in 0..<6000 {
+                // Use the simulation's real drift start, including its pause
+                // before the log first enters the nearby visible runway.
+                let current = ride.items.first { $0.id == target.id }!.posed(at: ride.elapsed)
+                let lead = row.worldPosition - current.worldPosition
+                let progress = current.sinkProgress(rowPosition: row.worldPosition)
+                if ride.blockedLogID == target.id { sawBlocking = true }
+                if (570...600).contains(lead) {
+                    reachedLateApproach = true
+                    assert(progress == 0)
+                }
+                if progress > 0 { sawSinking = true }
+                if progress >= 0.9 {
+                    assert(ride.blockedLogID != target.id, "Submerged log still blocks forward travel")
+                    cleared = true
+                    break
+                }
+                ride.steer(to: current.lateral)
+                ride.advance(seconds: 1.0 / 120)
+            }
+            assert(reachedLateApproach && sawBlocking && sawSinking && cleared)
+        }
+        print("Log sinking: solid until the final approach, submerged before the dividers, no invisible blocking on phone/tablet")
+    }
+
+    private static func checkWhirlpoolSurface() {
+        // The surface must join the road without a seam, stay finite at its
+        // centre and calm the ordinary crests inside the rotating depression.
+        for phase in [0.0, 0.32, 0.64, 100.0] {
+            let centre = HoneyWhirlpoolFlow.deform(x: 0, z: 0, phase: phase)
+            assert(centre.x == 0 && centre.z == 0 && centre.drop == 24)
+            assert(centre.calm < 0.1)
+            for index in 0..<48 {
+                let angle = Double(index) / 48 * .pi * 2
+                for radius in [0.25, 0.7, 0.9999, 1.0, 1.25] {
+                    let x = cos(angle) * radius * HoneyWhirlpoolFlow.radiusX
+                    let z = sin(angle) * radius * HoneyWhirlpoolFlow.radiusZ
+                    let sample = HoneyWhirlpoolFlow.deform(x: x, z: z, phase: phase)
+                    assert(sample.x.isFinite && sample.z.isFinite && sample.drop.isFinite)
+                    assert((0...24).contains(sample.drop) && (0...1).contains(sample.calm))
+                    if radius >= 1 {
+                        assert(abs(sample.x - x) < 1e-9 && abs(sample.z - z) < 1e-9)
+                        assert(sample.drop < 1e-9 && abs(sample.calm - 1) < 1e-9)
+                    } else if radius > 0.99 {
+                        assert(hypot(sample.x - x, sample.z - z) < 0.001)
+                    }
+                }
+            }
+        }
+        let first = HoneyWhirlpoolFlow.deform(x: 80, z: 20, phase: 0)
+        let next = HoneyWhirlpoolFlow.deform(x: 80, z: 20, phase: 0.5)
+        assert(hypot(first.x - next.x, first.z - next.z) > 0.1)
+        // Including the animated outer contour, artwork fits its placement bounds.
+        assert(HoneyWhirlpoolFlow.lateralRadius * 1.024 <= HoneyTrackItemKind.whirlpool.artworkLateralBounds.upperBound)
+        print("Whirlpool surface: smooth world-space boundary, calm centre, finite animated flow and bank clearance")
     }
 
     private static func checkCollectionMotion() {
@@ -810,23 +893,26 @@ import CoreGraphics
             }
             assert(stopped != nil)
             var ride = stopped!
-            let distance = ride.distance, time = ride.elapsed
-            let posedBefore = ride.items.first { $0.id == logID }!.posed(at: ride.elapsed).worldPosition
-            ride.steer(to: logLane); ride.advance(seconds: 2)
-            let drifted = HoneySlideRules.forwardSpeed * 0.25 * 2
-            assert(ride.elapsed > time && ride.blockedLogID == logID && ride.speed == 0)
-            assert(ride.distance > distance + drifted * 0.6 && ride.distance < distance + drifted * 1.4,
-                "The middle of a log should carry the rider at the log's drift, not freeze the world")
+            let contactLog = ride.items.first { $0.id == logID }!
+            let contactPose = contactLog.posed(at: ride.elapsed)
+            let contactDepth = HoneySlideRules.depth(ahead: contactPose.worldPosition - ride.distance)
+            let contactScale = contactDepth / HoneySlideRules.playerDepth * ride.cameraZoom
+            let contactPoint = HoneySlideRules.ridingPoint(depth: contactDepth, lateral: contactPose.lateral,
+                distance: ride.travelTime, course: ride.course, cameraZoom: ride.cameraZoom)
+            let paintedBottom = contactPoint.y + HoneyLogGeometry.maxY * contactScale * HoneySlideRules.billboardVerticalScale(viewport: size)
+            assert(abs(paintedBottom - ride.logFootprint.minY) < 9, "Stopped ahead of the visible tube nose")
+            let time = ride.elapsed
+            let posedBefore = contactPose.worldPosition
+            ride.steer(to: logLane); ride.advance(seconds: 1.2)
             let log = ride.items.first { $0.id == logID }!
+            let expected = HoneySlideRules.forwardSpeed * 0.25 * (ride.elapsed - time)
             let posedNow = log.posed(at: ride.elapsed).worldPosition
-            assert(posedNow > posedBefore + drifted * 0.8, "A held log stopped drifting")
+            assert(abs(posedNow - posedBefore - expected) < 1, "Contact changed how fast the log drifts")
             let posed = log.posed(at: ride.elapsed)
             let depth = HoneySlideRules.depth(ahead: posed.worldPosition - ride.distance)
             let scale = depth / HoneySlideRules.playerDepth * ride.cameraZoom
             let position = HoneySlideRules.ridingPoint(depth: depth, lateral: posed.lateral,
                 distance: ride.travelTime, course: ride.course, cameraZoom: ride.cameraZoom)
-            let paintedBottom = position.y + HoneyLogGeometry.maxY * scale * HoneySlideRules.billboardVerticalScale(viewport: size)
-            assert(abs(paintedBottom - ride.logFootprint.minY) < 9, "Stopped ahead of the visible tube nose")
             assert(ride.logFootprint.minY > ride.tubeFootprint.minY + 35, "Log collision still includes the empty space around the bear")
             let origin = HoneySlideRules.ridingPoint(depth: HoneySlideRules.playerDepth, lateral: 0,
                 distance: ride.travelTime, course: ride.course, cameraZoom: ride.cameraZoom).x

@@ -24,6 +24,7 @@
 		F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 		F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 		F951ED6A307F83B700FF04C4 /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
+		F9BAF45C308BF23100BC4B3C /* Honey Slide.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = "Honey Slide.xcodeproj"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -108,6 +109,7 @@
 				F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */,
 				F951DE9A307BAD2700FF04C4 /* Honey Slide.xcodeproj */,
 				F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */,
+				F951ED6A307F83B700FF04C4 /* Honey Slide.xcodeproj */,
 			);
 			name = "Recovered References";
 			sourceTree = "<group>";
@@ -210,6 +212,13 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		F9BAF490308BF23100BC4B3C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -260,16 +269,20 @@
 			projectDirPath = "";
 			projectReferences = (
 				{
-					ProductGroup = F951ED9E307F83B700FF04C4 /* Products */;
-					ProjectRef = F951ED6A307F83B700FF04C4 /* Honey Slide.xcodeproj */;
-				},
-				{
 					ProductGroup = F951E593307BAF0900FF04C4 /* Products */;
 					ProjectRef = F951E55F307BAF0900FF04C4 /* Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951DE98307BAD2700FF04C4 /* Products */;
 					ProjectRef = F951DE65307BAD2700FF04C4 /* Honey Slide.xcodeproj */;
+				},
+				{
+					ProductGroup = F951ED9E307F83B700FF04C4 /* Products */;
+					ProjectRef = F951ED6A307F83B700FF04C4 /* Honey Slide.xcodeproj */;
+				},
+				{
+					ProductGroup = F9BAF490308BF23100BC4B3C /* Products */;
+					ProjectRef = F9BAF45C308BF23100BC4B3C /* Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951DE9C307BAD2700FF04C4 /* Products */;
@@ -288,6 +301,18 @@
 					ProjectRef = F951D607307AC6A200FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
+					ProductGroup = F951D312307A45DC00FF04C4 /* Products */;
+					ProjectRef = F951D30C307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
+				},
+				{
+					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
+					ProjectRef = F951CB4D307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
+				},
+				{
+					ProductGroup = F951D798307ACE9100FF04C4 /* Products */;
+					ProjectRef = F951D748307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
+				},
+				{
 					ProductGroup = F951CD9D307A423F00FF04C4 /* Products */;
 					ProjectRef = F951CD95307A423F00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
@@ -296,20 +321,8 @@
 					ProjectRef = F951D42C307A6B5600FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
-					ProductGroup = F951D312307A45DC00FF04C4 /* Products */;
-					ProjectRef = F951D30C307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
-				},
-				{
 					ProductGroup = F951D314307A45DC00FF04C4 /* Products */;
 					ProjectRef = F951D2C4307A45DC00FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
-				},
-				{
-					ProductGroup = F951D798307ACE9100FF04C4 /* Products */;
-					ProjectRef = F951D748307ACE9100FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
-				},
-				{
-					ProductGroup = F951CB97307A416800FF04C4 /* Products */;
-					ProjectRef = F951CB4D307A416800FF04C4 /* Honey Slide/Honey Slide.xcodeproj */;
 				},
 				{
 					ProductGroup = F951D47B307A6B5600FF04C4 /* Products */;

@@ -446,11 +446,12 @@ struct HoneySlideSimulation {
             if hasFinishLaunched {
                 let end = finish!.launchedAt! + HoneySlideRules.finishFlightDuration
                 let step = min(dt, max(0, end - elapsed))
-                if step > 0 {
-                    // Keep a forward component along the ramp instead of stopping
-                    // and going straight up.
-                    let glide = max(0, 1 - finishFlightProgress * 0.55)
-                    distance += HoneySlideRules.forwardSpeed * finishLaunchPace * glide * step
+                if step > 0, let roadEnd = finish?.roadEnd {
+                    // Travel forward along the ramp, and stop at its end so the
+                    // flight does not carry the camera into the trees.
+                    let glide = max(0, 1 - finishFlightProgress * 0.35)
+                    let proposed = distance + HoneySlideRules.forwardSpeed * finishLaunchPace * glide * step
+                    distance = min(roadEnd, proposed)
                 }
                 elapsed = min(elapsed + dt, end)
                 remaining -= dt
@@ -491,7 +492,12 @@ struct HoneySlideSimulation {
             let unconstrained = lateral
             lateral = max(-railLimit, min(railLimit, lateral))
             railContact = abs(lateral) >= railLimit - 1e-9 ? (lateral < 0 ? -1 : 1) : 0
-            if lateral != unconstrained || railContact != 0 { travelSlope = currentCourse.slope; steeringVelocity = 0 }
+            if lateral != unconstrained || railContact != 0 {
+                travelSlope = currentCourse.slope
+                // A push into the bank stops. Steering back toward the honey does not,
+                // so the view does not rock once the pinch is behind the rider.
+                if steeringVelocity * lateral > 0 { steeringVelocity = 0 }
+            }
             let heading = max(-16, min(16, steeringVelocity * 5 + railContact * 2))
             tubeHeading += (heading - tubeHeading) * (1 - exp(-7 * dt))
             constrainToDividers()
@@ -527,7 +533,13 @@ struct HoneySlideSimulation {
             return
         }
         smoothedZoom! += (zoomTarget - smoothedZoom!) * blend
-        smoothedOffset += (rawCameraOffset - smoothedOffset) * blend
+        let delta = rawCameraOffset - smoothedOffset
+        // Ignore a tiny target so a rail flicker cannot pan the whole scene.
+        if abs(delta) > 18 || abs(smoothedOffset) > 24 {
+            smoothedOffset += max(-90 * dt, min(90 * dt, delta))
+        } else {
+            smoothedOffset += (0 - smoothedOffset) * blend
+        }
     }
 
     private mutating func startVisibleLogDrift() {
@@ -540,8 +552,10 @@ struct HoneySlideSimulation {
     }
 
     private func logInterval(_ item: HoneyTrackItem, distance: Double) -> ClosedRange<Double>? {
+        let sink = checkpoints.first(where: { $0.id == item.checkpointID })
+            .map { item.sinkProgress(rowPosition: $0.worldPosition) } ?? 0
         return HoneyLogContact.forbidden(item, distance: distance, footprint: logFootprint,
-            course: course, cameraZoom: cameraZoom, viewport: viewport)
+            course: course, cameraZoom: cameraZoom, viewport: viewport, sinkProgress: sink)
     }
 
     private func logCoreHalf(_ item: HoneyTrackItem) -> Double {
@@ -552,10 +566,6 @@ struct HoneySlideSimulation {
     /// The middle of a trunk stops the rider. The ends overlap as a light shove
     /// and do not hold forward travel.
     private func logTouch(_ item: HoneyTrackItem, distance: Double) -> (solid: Bool, bump: Bool) {
-        if let row = checkpoints.first(where: { $0.id == item.checkpointID }),
-           item.sinkProgress(rowPosition: row.worldPosition) >= 0.72 {
-            return (false, false)
-        }
         guard let full = logInterval(item, distance: distance), full.contains(lateral) else { return (false, false) }
         let solid = abs(lateral - item.lateral) <= logCoreHalf(item)
         return (solid, !solid)
@@ -575,6 +585,20 @@ struct HoneySlideSimulation {
                     let away = lateral >= posed.lateral ? 1.0 : -1.0
                     knockbackVelocity = away * 0.85
                 }
+                continue
+            }
+            let ahead = posed.worldPosition - distance - HoneySlideRules.playerAhead
+            if ahead > 180 {
+                continue
+            }
+            let held = logTouch(posed, distance: distance)
+            if held.solid || (blockedLogID == items[i].id && logInterval(posed, distance: distance) != nil
+                && abs(lateral - posed.lateral) <= logCoreHalf(posed) && ahead > -30) {
+                // The rider stops in the world. The trunk's own drift is untouched,
+                // so sitting against it does not slow the log down.
+                result = distance
+                blockingID = items[i].id
+                if items[i].contactedAt == nil { items[i].contactedAt = elapsed }
                 continue
             }
             guard touch.solid else { continue }

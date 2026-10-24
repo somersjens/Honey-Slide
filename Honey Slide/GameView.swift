@@ -62,6 +62,8 @@ struct GameView: View {
     /// A completed board gets one last moment in the reef before its result
     /// card appears. Other endings (no lives, or leaving) remain immediate.
     @State private var playsLevelCompletion = false
+    /// Invalidates the delayed "completion is over" update from a previous run.
+    @State private var completionGeneration = 0
     @State private var showsResult = false
     @State private var slideSessionID = UUID()
     /// The tutorial switch on the start card. It only decides what the start
@@ -113,6 +115,7 @@ struct GameView: View {
                            board: request.board,
                            character: character,
                            onPlayAgain: {
+                               completionGeneration += 1
                                showsResult = false
                                playsLevelCompletion = false
                                playsFishEntrance = true
@@ -162,6 +165,14 @@ struct GameView: View {
             }
             if model.result.reason == .roundsCompleted {
                 playsLevelCompletion = true
+                // If the playfield callback is missed after Play again, the
+                // result still appears once the flight has had time to finish.
+                let generation = completionGeneration
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) {
+                    guard generation == completionGeneration, model.isGameOver, !showsResult else { return }
+                    showsResult = true
+                    playsLevelCompletion = false
+                }
             } else if model.result.reason == .timeExpired {
                 // Leave the zero on the cockpit for one last beat. Without
                 // this, the result card covers the clock in the same update
@@ -265,12 +276,17 @@ struct GameView: View {
     }
 
     private func finishLevelCompletion() {
-        guard playsLevelCompletion, model.isGameOver else { return }
+        guard model.isGameOver else { return }
         // The simulation reports completion after the finish ramp launches
         // the bear completely out of view, after the final pot has settled.
         // Pausing/backgrounding cannot let a wall-clock timer skip its flight.
+        // Play again used to drop this callback when the previous run's flag
+        // was already cleared, so the second finish stayed in the trees.
         showsResult = true
+        playsLevelCompletion = true
+        let generation = completionGeneration
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            guard generation == completionGeneration else { return }
             playsLevelCompletion = false
         }
     }
@@ -675,7 +691,8 @@ struct GameView: View {
     /// behind the start card or the result card, and never while the app is in
     /// the background.
     private var isReefRunning: Bool {
-        !showsIntro && (!model.isGameOver || playsLevelCompletion) && scenePhase == .active
+        let finishStillPlaying = model.isGameOver && model.result.reason == .roundsCompleted && !showsResult
+        return !showsIntro && (!model.isGameOver || playsLevelCompletion || finishStillPlaying) && scenePhase == .active
     }
 }
 

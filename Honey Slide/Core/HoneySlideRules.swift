@@ -153,7 +153,9 @@ enum HoneySlideRules {
         let depth = groundDepth(screenY: point.y)
         let center = trackPoint(depth: depth, offset: 0, distance: elapsed, course: course, cameraZoom: cameraZoom, cameraOffset: cameraOffset)
         let edge = trackPoint(depth: depth, offset: 1, distance: elapsed, course: course, widthProfile: widthProfile, cameraZoom: cameraZoom, cameraOffset: cameraOffset)
-        guard abs(point.x - center.x) <= edge.x - center.x else { return nil }
+        let half = edge.x - center.x
+        // A folded bank reports a negative width and would flip steering.
+        guard half > 12, abs(point.x - center.x) <= half else { return nil }
         let width = ridingPoint(depth: depth, lateral: 1, distance: elapsed, course: course, cameraZoom: cameraZoom, cameraOffset: cameraOffset).x - center.x
         return (point.x - center.x) / max(1, width)
     }

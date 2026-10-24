@@ -62,7 +62,7 @@ struct HoneySlideCourse {
             let headingLimit = 55.0 * .pi / 180
             let endSlope: Double
             if bends.isEmpty {
-                endSlope = nextDirection * tan(Double.random(in: 48...55, using: &generator) * .pi / 180)
+                endSlope = nextDirection * tan(Double.random(in: 22...32, using: &generator) * .pi / 180)
             } else if Int.random(in: 0..<100, using: &generator) < 16 {
                 // A whole interval may continue straight, so even the spacing
                 // between visible turns has no fixed left-right rhythm.
@@ -72,7 +72,10 @@ struct HoneySlideCourse {
                 let room = headingLimit - nextDirection * heading
                 if room < 22 * .pi / 180 { nextDirection *= -1 }
                 let available = headingLimit - nextDirection * heading
-                let angle = min(available, Double.random(in: 25...75, using: &generator) * .pi / 180)
+                // A hairpin folds the two banks over each other. Past that
+                // line the camera then rocks back and forth.
+                let curvatureCap = max(420, length) * 0.00042
+                let angle = min(available, min(curvatureCap, Double.random(in: 18...36, using: &generator) * .pi / 180))
                 endSlope = tan(heading + nextDirection * angle)
             }
             bends.append(Bend(start: row + lead, length: length, startX: nextX,

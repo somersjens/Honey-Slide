@@ -15,7 +15,9 @@ The obstacle racer checks cover:
 - Three moving pots bounce between the banks of a four-option-wide road without dividers. Moving artwork stays inside the road; props start at question two, survive resume preparation, and fit within the banks at their own world positions.
 - 250 questions across six math topics, actual airborne misses, stable question promotion, and one Honey per correct answer.
 - Permanent log blocking on phone/tablet, exact stationary distance during contact, and resuming travel just beside the visible bark without an invisible margin.
+- Logs stay afloat until 560 world units before their answer row, sink under an opaque honey waterline, and clear before the dividers. Submerged bark releases its collision on phone/tablet.
 - Three-second boosts, exactly two-second whirlpools, and jumps that lift the whole tube above all stationary answer pots and land just after the row. Ramps are 430 world units before the pots and align with a divider. Pause and timer expiration are covered.
+- Whirlpool surface deformation: continuous edge, calm centre, finite animated samples and artwork contained within its bank-placement bounds.
 - Every passage in stationary 2–5 answer rows on phone/tablet: late steering cannot cross a divider, and answered divider tails remain solid until cleared. A lane switch 450 world units before the answer remains possible.
 - Saved difficulty streaks, Honey-only rewards and loading older saves with obsolete score fields.
 - Equivalent travel and collision outcomes for a long frame and 1,200 short frames.
@@ -39,3 +41,21 @@ python3 Tools/honey_performance.py --output /tmp/honey-race-preview --samples 24
 ```
 
 The runner includes all six race moments, every answer count, jump apex/landing, whirlpool contact, a blocked log, close passage beside its bark, question-two/resumed props, finish approach/funnel/launch/exit scenes and an artwork sheet. Use `--scenario-prefix finish-` for only the finish scenes. It emits phone/tablet PNGs plus CPU/offscreen preparation measurements. These measurements are not presented device FPS. Use a physical iPhone/iPad with Instruments to measure GPU presentation and animation hitches.
+
+Use `--scenario-prefix log-sink-` for a drifting log before the final approach, at sink onset, halfway under, closing and fully submerged beside its answer row.
+
+For a clear whirlpool comparison beside the rider, use `--scenario-prefix whirlpool-`. This renders far/near approaches and four rotation phases with the same camera and world positions. Add `--whirlpool-animation` to export the nearby phone scene as an animated GIF. The effect-contact scene remains available separately via `--scenario-prefix effect-whirlpool`.
+
+Fixed gameplay illustrations are bundled as `honey-*.imageset` assets. After changing their vector sources in `HoneySlidePlayfield.swift`, regenerate them explicitly:
+
+```sh
+python3 Tools/honey_performance.py --output /tmp/honey-artwork-export --export-artwork Assets.xcassets
+```
+
+The exporter checks that every runtime artwork name has an exported image. It includes the distant rail/divider faces and the sliding pot shutter; the live renderer retains full geometry nearby. Answer labels are cached separately and prepared while the intro card covers the level and before future questions arrive.
+
+On iOS, collection flights use cached images and native layer transforms. An inverse-alpha rider mask preserves the pot's passage behind the bear without a second animated Canvas. The score textures and first possible correction are prepared in advance; HUD panels reuse bitmaps. The correction's native layers remain mounted while hidden.
+
+Use `--scenario-prefix startup-` to compare an empty illustration cache, another level and restarting the first level. `renderer.json` includes `first_frame`, bitmap cache misses and generated bitmap bytes, in addition to warmed CPU/offscreen measurements. The simulator workload reports its first two seconds separately as `startup_update_interval`; it measures delivered updates, not physical-device presentation FPS.
+
+The isolated simulator app accepts `--freeze-collection=0.18` and `--freeze-wrong=0.30` as launch arguments for visual checks of the actual UIKit layers. These stop the pure benchmark simulation after contact and do not touch the player's app or saved progress. Its fullscreen and landscape settings match the game. The simulator does not support Instruments' Animation Hitches instrument; use a connected physical device for that measurement.

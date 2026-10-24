@@ -138,6 +138,8 @@ enum HoneyLogGeometry {
     static let maxY = centerY + halfHeight
     /// The lower half sits under the honey. The cut rests on the waterline.
     static let submergedHalf = (maxY - minY) * 0.5
+    static let waterline = 30.0
+    static let sinkDistance = 94.0
 
     static func span(at y: Double) -> ClosedRange<Double> {
         let fraction = (y - centerY) / halfHeight
@@ -150,7 +152,8 @@ enum HoneyLogGeometry {
 /// cuboid. Contact uses the visible front hull with half a pixel of clearance.
 enum HoneyLogContact {
     static func forbidden(_ item: HoneyTrackItem, distance: Double, footprint: HoneyTubeFootprint,
-                          course: HoneySlideCourse, cameraZoom: Double, viewport: CGSize) -> ClosedRange<Double>? {
+                          course: HoneySlideCourse, cameraZoom: Double, viewport: CGSize,
+                          sinkProgress: Double = 0) -> ClosedRange<Double>? {
         let ahead = item.worldPosition - distance
         guard ahead > HoneySlideRules.nearClipAhead else { return nil }
         let depth = HoneySlideRules.depth(ahead: ahead)
@@ -159,7 +162,8 @@ enum HoneyLogContact {
         let position = HoneySlideRules.ridingPoint(depth: depth, lateral: item.lateral,
             distance: distance / HoneySlideRules.forwardSpeed, course: course, cameraZoom: cameraZoom)
         // Only the half that remains above the honey can stop the tube.
-        let low = max(footprint.minY, position.y + HoneyLogGeometry.centerY * scaleY)
+        let sink = HoneyLogGeometry.sinkDistance * sinkProgress
+        let low = max(footprint.minY, position.y + (HoneyLogGeometry.centerY + sink) * scaleY)
         let high = min(footprint.maxY, position.y + HoneyLogGeometry.maxY * scaleY)
         guard low < high else { return nil }
         let width = HoneySlideRules.ridingHalfWidth(depth: HoneySlideRules.playerDepth) * cameraZoom
@@ -168,7 +172,7 @@ enum HoneyLogContact {
         var lower = Double.infinity, upper = -Double.infinity
         for sample in 0...32 {
             let y = low + (high - low) * Double(sample) / 32
-            let artworkY = HoneyLogGeometry.minY + (y - position.y) / scaleY - HoneyLogGeometry.centerY
+            let artworkY = HoneyLogGeometry.minY + (y - position.y) / scaleY - HoneyLogGeometry.centerY - sink
             let span = HoneyLogGeometry.span(at: artworkY)
             let slice = footprint.slice(at: y)
             lower = min(lower, (position.x + span.lowerBound * scaleX - origin - slice.upperBound) / width)
